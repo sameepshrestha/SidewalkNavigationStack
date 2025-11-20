@@ -1,0 +1,69 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Selection
+    Name: Selection
+  - Class: rviz_common/Tool Properties
+    Name: Tool Properties
+  - Class: rviz_common/Views
+    Name: Views
+    Expanded: true
+
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160;160;160
+      Enabled: true
+      Name: Grid
+
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Name: TF
+
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Description Source: Topic
+      Description Topic: /robot_description
+
+    - Class: rviz_default_plugins/Odometry
+      Name: Odometry
+      Enabled: true
+      Topic: /odom
+      Shape: Arrow
+      Color: 255;25;0
+
+    - Class: rviz_default_plugins/Image
+      Name: Front Camera
+      Enabled: true
+      Topic: /camera_front/image_raw
+
+    - Class: rviz_default_plugins/Image
+      Name: Perception Output
+      Enabled: true
+      Topic: /perception/output
+
+    - Class: rviz_default_plugins/Pose
+      Name: Pose
+      Topic: /pose
+      Enabled: false
+
+  Global Options:
+    Background Color: 48;48;48
+    Fixed Frame: base_link
+    Frame Rate: 30
+
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+
+Views:
+  Current:
+    Class: rviz_default_plugins/Orbit
+    Distance: 8.0
+    Pitch: 0.5
+    Yaw: 0.5
