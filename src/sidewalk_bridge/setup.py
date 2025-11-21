@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'bridge_node = sidewalk_bridge.bridge_node:main'
         ],
     },
 )
