@@ -54,9 +54,8 @@ class BridgeNode(Node):
 
     def cmd_vel_callback(self,msg):
 
-
-        throttle = 0.0
-        steering = 0.0
+        throttle = msg.linear.x 
+        steering = msg.angular.z 
 
         self.client.send_command(steering,throttle)
 

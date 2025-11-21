@@ -1,0 +1,11 @@
+twist_mux:
+  ros__parameters:
+    topics:
+      navigation: # Your autonomous code
+        topic: cmd_vel_auto
+        timeout: 0.5
+        priority: 10
+      joystick:   # Your PS5 controller
+        topic: cmd_vel_joy
+        timeout: 0.5
+        priority: 100
