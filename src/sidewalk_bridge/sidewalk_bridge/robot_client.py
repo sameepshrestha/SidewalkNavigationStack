@@ -11,7 +11,7 @@ import queue
 from aiortc import RTCPeerConnection, RTCSessionDescription
 # import robot_messages_pb2
 
-SERVER_OFFER_URL = "http://100.102.181.1:8080/offer" 
+SERVER_OFFER_URL = "http://100.102.181.1:8080/offer"    
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,6 +25,7 @@ class Robotclient:
         self._sensor_lock = threading.Lock()
 
         self.mid_map = {"0": "front", "1": "back", "2": "left", "3": "right"}
+        self._last_sensor_msg = None
         self.logger = logging.getLogger("robotrtclient")
         self.connection_ready = threading.Event()
         self._loop = None
@@ -37,7 +38,6 @@ class Robotclient:
     async def _data_channel_setup(self):
         self._data_channel_ready_async = asyncio.Event()
         self.dc = self.pc.createDataChannel("protobuf")
-        #self.logger.info("Client: created data channel 'protobuf'")
 
         @self.dc.on("open")
         def on_open():
@@ -50,19 +50,19 @@ class Robotclient:
             try:
                 sd = robot_messages_pb2.SensorData()
                 sd.ParseFromString(message)
-                # print a small summary
                 print(f"[SensorData] seq={sd.sequence} timestamp={sd.timestamp} yaw={sd.imu.yaw:.2f}")
+                with self._sensor_lock:
+                    self._last_sensor_msg = sd
             except Exception:
                 try:
                     rs = robot_messages_pb2.RobotStatus()
                     rs.ParseFromString(message)
-                    #print(f"[RobotStatus] status parsed: {rs}")
                 except Exception:
                     print(f"[DataChannel] Received raw message len={len(message) if hasattr(message,'__len__') else 'unknown'}")
                 pass
 
     async def _video_setup(self):
-        self.track_count = 0 
+        self.track_count = 0
         for _ in range(3):
             self.pc.addTransceiver("video", direction="recvonly")
         async def on_track(track):
@@ -141,7 +141,7 @@ class Robotclient:
         self._thread.start()
             
     def _run_asyncio_loop(self):
-        self._keep_alive =- False
+        self._keep_alive = True
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         try:
@@ -152,9 +152,8 @@ class Robotclient:
         self.logger.info("Stopping robot client...")
         if self._loop and self._loop.is_running():
             self._loop.call_soon_threadsafe(self._loop.stop)
-        if self._thread:
+        if self._thread:    
             self._thread.join(timeout=2)
-
     @property
     def front_camera_frame(self):
         with self._frames_lock:
@@ -172,3 +171,10 @@ class Robotclient:
         with self._frames_lock:
             frame = self._frames.get("right")
             return frame.copy() if frame is not None else None
+    @property
+    def get_last_msg(self):
+        with self._sensor_lock:
+            data = self._last_sensor_msg
+            return data if data is not None else None 
+        
+

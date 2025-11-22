@@ -25,6 +25,7 @@ def generate_launch_description():
         default_value='ipm',
         description='Options: ipm, depth, hybrid'
     )
+    
     joy_node = Node(
         package='joy',
         executable='joy_node',
@@ -32,24 +33,21 @@ def generate_launch_description():
         parameters=[{'dev': '/dev/input/js0', 'deadzone': 0.1, 'autorepeat_rate': 20.0}]
     )
 
-    # B. Converts raw USB to Velocity commands (on /cmd_vel_joy)
-# B. Converts raw USB to Velocity commands (on /cmd_vel_joy)
     teleop_node = Node(
         package='teleop_twist_joy',
         executable='teleop_node',
-        name='teleop_ps5_driver',  # CHANGED NAME TO KILL ZOMBIES
+        name='teleop_ps5_driver',  
         parameters=[{
-            # Main mapping
-            'axis_linear.x': 1,     # Force Specific Forward Axis
-            'axis_linear': 1,       # Backup
+            'axis_linear.x': 1,    
+            'axis_linear': 1,    
             
-            'scale_linear.x': 0.5,  # Force Specific Scale
+            'scale_linear.x': 0.5,  
             'scale_linear': 0.5,
 
-            'axis_angular.yaw': 3,  # Force Specific Turn Axis
-            'axis_angular': 3,      # Backup
+            'axis_angular.yaw': 0, 
+            'axis_angular': 0,      
             
-            'scale_angular.yaw': 1.0, # Force Specific Scale
+            'scale_angular.yaw': 1.0, 
             'scale_angular': 1.0,
 
             # Button Config
@@ -59,9 +57,7 @@ def generate_launch_description():
         }],
         remappings=[('/cmd_vel', '/cmd_vel_joy')]
     )
-    # C. The Traffic Cop (Mux)
-    # Listens to /cmd_vel_auto (Bridge) and /cmd_vel_joy (PS5)
-    # Outputs to /cmd_vel (Real Wheels)
+
     twist_mux_node = Node(
         package='twist_mux',
         executable='twist_mux',
@@ -69,7 +65,6 @@ def generate_launch_description():
         parameters=[mux_config],
         remappings=[('/cmd_vel_out', '/cmd_vel')])
     
-    # FIX 1: Correct syntax for checking conditions
     node_boxx = Node(
         package='sidewalk_bridge',
         executable='bridge_node',
@@ -90,8 +85,6 @@ def generate_launch_description():
 
     
     rviz_config_path = '/home/sameep/phd_research/sidewalkauto_ws/src/sidewalk_main/launch/sidewalk_nav.rviz'
-    
-    # Only use the argument if the file actually exists, otherwise run empty
     rviz_args = ['-d', rviz_config_path] if os.path.exists(rviz_config_path) else []
 
     rviz = Node(

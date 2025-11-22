@@ -9,6 +9,8 @@ import cv2
 import numpy as np 
 import math
 from .robot_client import Robotclient
+from .utilis import euler_to_quaternion 
+
 SERVER_OFFER_URL = "http://100.102.181.1:8080/offer" 
 
 class BridgeNode(Node):
@@ -18,7 +20,6 @@ class BridgeNode(Node):
         self.pub_front = self.create_publisher(Image, 'camera/front/image_raw',10)
         self.pub_left = self.create_publisher(Image, 'camera/left/image_raw',10)
         self.pub_right = self.create_publisher(Image, 'camera/right/image_raw',10)
-
 
         self.pub_imu = self.create_publisher(Imu, '/imu/data',10)
 
@@ -32,6 +33,7 @@ class BridgeNode(Node):
         except Exception as e:
             self.get_logger().error("Failed to start webrtc client: {e}")
         self.timer = self.create_timer(0.033, self.update_loop)
+
     def update_loop(self):
         current_time = self.get_clock().now().to_msg()
         frame_front = self.client.front_camera_frame
@@ -43,6 +45,37 @@ class BridgeNode(Node):
         frame_right = self.client.right_camera_frame
         if frame_right is not None:
             self.publish_image(frame_front,"right_camera_link", self.pub_right, current_time)
+        data = self.client.get_last_msg
+        if data is not None:
+            self.publish_imu(data)
+
+    def publish_imu(self,data):
+        imu_msg = Imu()
+        imu_msg.header.stamp = self.get_clock().now().to_msg()
+        imu_msg.header.frame_id = "imu_link"
+        # Linear Acceleration (g -> m/s^2)
+        imu_msg.linear_acceleration.x = data.imu.accel_x * 9.80665
+        imu_msg.linear_acceleration.y = data.imu.accel_y * 9.80665
+        imu_msg.linear_acceleration.z = data.imu.accel_z * 9.80665
+        # # Angular Velocity (deg/s -> rad/s)
+        # imu_msg.angular_velocity.x = math.radians(data.imu.gyro_x)
+        # imu_msg.angular_velocity.y = math.radians(data.imu.gyro_y)
+        # imu_msg.angular_velocity.z = math.radians(data.imu.gyro_z)
+        # Orientation (Euler Deg -> Quaternion)
+        # NOW USING THE IMPORTED UTILITY FUNCTION
+        qx, qy, qz, qw = euler_to_quaternion(
+            data.imu.roll, 
+            data.imu.pitch, 
+            data.imu.yaw
+        )
+
+        imu_msg.orientation.x = qx
+        imu_msg.orientation.y = qy
+        imu_msg.orientation.z = qz
+        imu_msg.orientation.w = qw
+        
+        self.pub_imu.publish(imu_msg)
+
     def publish_image(self, cv_image, frame_id, publisher, time_stamp):
         try:
             msg = self.cv_bridge.cv2_to_imgmsg(cv_image, encoding="bgr8")
@@ -63,6 +96,7 @@ class BridgeNode(Node):
         self._logger().info("stopping WebRTC Bridge...")
         self.client.stop()
         super().destroy_node()
+        
 def main(args = None):
     rclpy.init(args=args)
     node = BridgeNode()
