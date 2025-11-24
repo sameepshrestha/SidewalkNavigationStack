@@ -1,18 +1,23 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration, PythonExpression, Command
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
-
+from launch.actions import IncludeLaunchDescription      # CORRECT
+from launch_ros.parameter_descriptions import ParameterValue
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 def generate_launch_description():
 
     robot_mode = LaunchConfiguration('robot_mode')
     perception_mode = LaunchConfiguration('perception_mode')
     pkg_share = get_package_share_directory('sidewalk_main')
+    pkg_share_loc = get_package_share_directory('sidewalk_localization')
+    pkg_share_ui = get_package_share_directory('sidewalk_ui')
     joy_config = os.path.join(pkg_share, 'config', 'ps5controller.yaml')
     mux_config = os.path.join(pkg_share, 'config', 'mux.yaml')
+    boxx_urdf = os.path.join(pkg_share, 'config', 'boxx.urdf')  # 
 
     arg_robot = DeclareLaunchArgument(
         'robot_mode',
@@ -25,7 +30,26 @@ def generate_launch_description():
         default_value='ipm',
         description='Options: ipm, depth, hybrid'
     )
+    node_robot_state_publisher = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        name='robot_state_publisher',
+        output='screen',
+        parameters=[{'robot_description': ParameterValue(Command(['cat ', boxx_urdf]),value_type = str)}],
+        condition=IfCondition(PythonExpression(["'", robot_mode, "' == 'boxx'"]))
+    )
     
+    localization = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(get_package_share_directory('sidewalk_localization'), 
+                         'launch', 'localization.launch.py')
+        )
+    )
+    ui_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_share_ui, 'launch', 'sidewalk_ui.launch.py')
+        )
+    )
     joy_node = Node(
         package='joy',
         executable='joy_node',
@@ -50,7 +74,6 @@ def generate_launch_description():
             'scale_angular.yaw': 1.0, 
             'scale_angular': 1.0,
 
-            # Button Config
             'require_enable_button': True,
             'enable_button': 4,     # L1
             'deadzone': 0.1
@@ -82,7 +105,6 @@ def generate_launch_description():
             PythonExpression(["'", robot_mode, "' == 'frodobot'"])
         )
     )
-
     
     rviz_config_path = '/home/sameep/phd_research/sidewalkauto_ws/src/sidewalk_main/launch/sidewalk_nav.rviz'
     rviz_args = ['-d', rviz_config_path] if os.path.exists(rviz_config_path) else []
@@ -101,6 +123,9 @@ def generate_launch_description():
         joy_node,
         teleop_node,
         twist_mux_node,
+        localization,
+        ui_launch,
+        node_robot_state_publisher,
         node_boxx,
         node_frodobot,
         rviz,

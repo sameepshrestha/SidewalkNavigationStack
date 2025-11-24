@@ -2,7 +2,7 @@
 
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import Image, Imu, BatteryState
+from sensor_msgs.msg import Image, Imu, BatteryState, NavSatFix
 from geometry_msgs.msg import Twist
 from cv_bridge import CvBridge
 import cv2
@@ -20,9 +20,10 @@ class BridgeNode(Node):
         self.pub_front = self.create_publisher(Image, 'camera/front/image_raw',10)
         self.pub_left = self.create_publisher(Image, 'camera/left/image_raw',10)
         self.pub_right = self.create_publisher(Image, 'camera/right/image_raw',10)
+    
 
         self.pub_imu = self.create_publisher(Imu, '/imu/data',10)
-
+        self.pub_gps = self.create_publisher(NavSatFix,'/gps/data',10)
         self.sub_cmd = self.create_subscription(Twist,'/cmd_vel',self.cmd_vel_callback,10)
         self.cv_bridge = CvBridge()
         self.get_logger().info(f"Inializing webrtc brige to (server)")
@@ -34,20 +35,35 @@ class BridgeNode(Node):
             self.get_logger().error("Failed to start webrtc client: {e}")
         self.timer = self.create_timer(0.033, self.update_loop)
 
-    def update_loop(self):
+    def update_loop(self):  # current time to sensor recorded data, need to change this 
         current_time = self.get_clock().now().to_msg()
         frame_front = self.client.front_camera_frame
         if frame_front is not None:
             self.publish_image(frame_front,"front_camera_link", self.pub_front, current_time)
         frame_left = self.client.left_camera_frame
         if frame_left is not None:
-            self.publish_image(frame_front,"left_camera_link", self.pub_left, current_time)
+            self.publish_image(frame_left,"left_camera_link", self.pub_left, current_time)
         frame_right = self.client.right_camera_frame
         if frame_right is not None:
-            self.publish_image(frame_front,"right_camera_link", self.pub_right, current_time)
+            self.publish_image(frame_right,"right_camera_link", self.pub_right, current_time)
         data = self.client.get_last_msg
         if data is not None:
             self.publish_imu(data)
+        if hasattr(data,'gps') and data.gps.lat != 1000:
+            self.publish_raw_gps(data, current_time)
+
+    def publish_raw_gps(self, data, current_time):
+        nav_msg = NavSatFix()
+        nav_msg.header.stamp = current_time
+        nav_msg.header.frame_id = "gps_link" 
+        nav_msg.latitude = data.gps.lat
+        nav_msg.longitude = data.gps.lon
+        nav_msg.altitude = getattr(data.gps, 'alt', 0.0)
+        
+        nav_msg.position_covariance = [3.0, 0.0, 0.0, 0.0, 3.0, 0.0, 0.0, 0.0, 3.0]
+        nav_msg.position_covariance_type = NavSatFix.COVARIANCE_TYPE_DIAGONAL_KNOWN
+        
+        self.pub_gps.publish(nav_msg)
 
     def publish_imu(self,data):
         imu_msg = Imu()
@@ -58,9 +74,9 @@ class BridgeNode(Node):
         imu_msg.linear_acceleration.y = data.imu.accel_y * 9.80665
         imu_msg.linear_acceleration.z = data.imu.accel_z * 9.80665
         # # Angular Velocity (deg/s -> rad/s)
-        # imu_msg.angular_velocity.x = math.radians(data.imu.gyro_x)
-        # imu_msg.angular_velocity.y = math.radians(data.imu.gyro_y)
-        # imu_msg.angular_velocity.z = math.radians(data.imu.gyro_z)
+        imu_msg.angular_velocity.x = math.radians(data.imu.gyro_x)
+        imu_msg.angular_velocity.y = math.radians(data.imu.gyro_y)
+        imu_msg.angular_velocity.z = math.radians(data.imu.gyro_z)
         # Orientation (Euler Deg -> Quaternion)
         # NOW USING THE IMPORTED UTILITY FUNCTION
         qx, qy, qz, qw = euler_to_quaternion(

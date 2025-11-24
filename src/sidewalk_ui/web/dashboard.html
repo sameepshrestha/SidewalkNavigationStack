@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sidewalk Robot Dashboard</title>
+    <!-- Import ROSLIBJS to talk to rosbridge -->
+    <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #222; color: white; }
+        .container { display: flex; gap: 20px; padding: 20px; }
+        .video-box { border: 2px solid #555; }
+        h2 { margin-top: 0; }
+        .data-panel { background: #333; padding: 20px; min-width: 250px; }
+        .stat { font-size: 1.2em; margin-bottom: 10px; }
+        .val { color: #00ff00; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Robot Mission Control</h1>
+
+    <div class="container">
+        <!-- 1. RAW VIDEO STREAM (From WebRTC -> ROS -> MJPEG) -->
+        <div class="video-box">
+            <h2>Front Camera</h2>
+            <!-- Using localhost:8080 from web_video_server -->
+            <img src="http://localhost:8081/stream?topic=/camera/front/image_raw&type=mjpeg&width=640&ros2_qos_reliability=best_effort" width="640" height="480" />
+        </div>
+
+        <!-- 2. AI SEGMENTATION STREAM (From SAM 3 Node) -->
+        <div class="video-box">
+            <h2>SAM 3 Mask</h2>
+            <img src="http://localhost:8081/stream?topic=/perception/sidewalk_mask&type=mjpeg&width=640" width="640" height="480" />
+        </div>
+
+        <!-- 3. LIVE DATA (Via Websockets) -->
+        <div class="data-panel">
+            <h2>Telemetry</h2>
+            <div class="stat">Status: <span id="status" class="val" style="color:red">Connecting...</span></div>
+            <hr>
+            <div class="stat">GPS Lat: <span id="lat" class="val">--</span></div>
+            <div class="stat">GPS Lon: <span id="lon" class="val">--</span></div>
+            <div class="stat">IMU Yaw: <span id="yaw" class="val">--</span></div>
+        </div>
+    </div>
+    <div class="data-panel">
+    <h2>Set Goal</h2>
+    <label>Lat: <input type="number" id="goal_lat" step="0.000001" value="40.7128"></label><br>
+    <label>Lon: <input type="number" id="goal_lon" step="0.000001" value="-74.0060"></label><br>
+    <br>
+    <button onclick="sendGpsGoal()" style="background: green; color: white; padding: 10px;">GO TO GPS</button>
+</div>
+
+
+
+    <script>
+        // --- 1. CONNECT TO ROSBRIDGE ---
+        var ros = new ROSLIB.Ros({
+            url : 'ws://localhost:9090' // Default rosbridge port
+        });
+
+        ros.on('connection', function() {
+            document.getElementById("status").innerHTML = "ONLINE";
+            document.getElementById("status").style.color = "#00ff00";
+        });
+
+        ros.on('error', function(error) {
+            document.getElementById("status").innerHTML = "ERROR";
+            document.getElementById("status").style.color = "red";
+        });
+
+        var gpsListener = new ROSLIB.Topic({
+            ros : ros,
+            name : '/gps/data',  // Topic from bridge node
+            messageType : 'sensor_msgs/NavSatFix'
+        });
+
+        gpsListener.subscribe(function(msg) {
+            document.getElementById("lat").innerHTML = msg.latitude.toFixed(6);
+            document.getElementById("lon").innerHTML = msg.longitude.toFixed(6);
+        });
+
+        var imuListener = new ROSLIB.Topic({
+            ros : ros,
+            name : '/imu/data',
+            messageType : 'sensor_msgs/Imu'
+        });
+
+        imuListener.subscribe(function(msg) {
+            // Very rough yaw check (z-orientation)
+            document.getElementById("yaw").innerHTML = msg.orientation.z.toFixed(2);
+        });
+    </script>
+
+        <script>
+        // 1. Setup the Topic publisher
+        var goalTopic = new ROSLIB.Topic({
+            ros : ros,
+            name : '/gui/set_gps_goal',
+            messageType : 'geometry_msgs/Point' // Using Point to cheat (x=Lat, y=Lon)
+        });
+
+        function sendGpsGoal() {
+            var lat = parseFloat(document.getElementById("goal_lat").value);
+            var lon = parseFloat(document.getElementById("goal_lon").value);
+
+            var msg = new ROSLIB.Message({
+                x : lat,
+                y : lon,
+                z : 0.0
+            });
+
+            goalTopic.publish(msg);
+            console.log("Sent GPS Goal: " + lat + ", " + lon);
+            alert("Goal Sent! Robot calculating path...");
+        }
+    </script>
+</body>
+</html>

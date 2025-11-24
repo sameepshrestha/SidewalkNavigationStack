@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<robot name="boxx">
+
+  <!-- Base Link: The physical box center -->
+  <!-- Origin is at Z=0.375m relative to the floor -->
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <!-- Actual dimensions of your robot -->
+        <box size="1.14 0.76 0.75"/> 
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 0.8"/>
+      </material>
+    </visual>
+  </link>
+<!-- GPS Link (Add this if missing) -->
+  <link name="gps_link">
+    <visual>
+       <geometry><box size="0.05 0.05 0.02"/></geometry>
+       <material name="green"><color rgba="0 1 0 1"/></material>
+    </visual>
+  </link>
+  <joint name="gps_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="gps_link"/>
+    <!-- Position relative to robot center -->
+    <origin xyz="0 0 0.5" rpy="0 0 0"/> 
+  </joint>
+  <!-- IMU Link -->
+  <link name="imu_link">
+    <visual>
+      <geometry>
+        <!-- Made it slightly larger to see in RViz -->
+        <box size="0.05 0.05 0.02"/>
+      </geometry>
+      <material name="red">
+         <color rgba="1 0 0 1"/>
+      </material>
+    </visual>
+  </link>
+
+  <!-- JOINT: IMU Location -->
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <!-- 
+       X: 0.24 (240mm ahead of center)
+       Y: 0.0  (Center width)
+       Z: 0.355 (0.73m height - 0.375m center offset)
+    -->
+    <origin xyz="0.24 0 0.355" rpy="0 0 0"/> 
+  </joint>
+
+  <!-- Camera Link -->
+  <link name="front_camera_link" />
+
+  <!-- JOINT: Camera Location -->
+  <joint name="front_camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="front_camera_link"/>
+    <!-- 
+       X: 0.28 (You said the camera is at this location?)
+       Y: 0.0
+       Z: 0.355 (Same height calculation as IMU, 0.73m from ground)
+       
+       RPY EXPLANATION (Optical Frame):
+       If you view the image in RViz, it expects Z-forward.
+       Robot has X-forward. 
+       We rotate: Roll -90 deg, Yaw -90 deg.
+       This makes the Camera's Z-axis point forward (Robot X).
+    -->
+    <origin xyz="0.28 0 0.355" rpy="-1.5707 0 -1.5707"/> 
+  </joint>
+
+</robot>

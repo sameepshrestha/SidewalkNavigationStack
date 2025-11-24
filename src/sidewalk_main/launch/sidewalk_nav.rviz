@@ -48,8 +48,13 @@ Visualization Manager:
 
     - Class: rviz_default_plugins/Pose
       Name: Pose
-      Topic: /pose
+      Topic: /pose/
       Enabled: false
+
+    - Class: rviz_default_plugins/Imu
+      Name: IMU Output
+      Topic: /imu/data
+      Enabled: true
 
   Global Options:
     Background Color: 48;48;48

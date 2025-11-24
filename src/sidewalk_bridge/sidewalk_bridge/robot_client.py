@@ -50,9 +50,11 @@ class Robotclient:
             try:
                 sd = robot_messages_pb2.SensorData()
                 sd.ParseFromString(message)
-                print(f"[SensorData] seq={sd.sequence} timestamp={sd.timestamp} yaw={sd.imu.yaw:.2f}")
-                with self._sensor_lock:
-                    self._last_sensor_msg = sd
+                if sd.timestamp != 0 :
+                    with self._sensor_lock:
+                        print(f"[SensorData] seq={sd.sequence} timestamp={sd.timestamp} yaw={sd.imu.yaw:.2f}")
+
+                        self._last_sensor_msg = sd
             except Exception:
                 try:
                     rs = robot_messages_pb2.RobotStatus()
