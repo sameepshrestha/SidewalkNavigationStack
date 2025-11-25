@@ -9,20 +9,23 @@ ekf_filter_node:
     base_link_frame: base_link
     world_frame: odom     
 
+    # --- INPUTS ---
     imu0: /imu/data
-
     imu0_config: [false, false, false,
                   false, false, true,
                   false, false, false,
                   false, false, true,
-                  false,  false, false] 
+                  true,  false, false]  # CHANGED: Enable Accel (last line) for faster convergence? Or keep false if noisy.
+    
+    # KEEPTING YOUR CONFIG:
+    # [x, y, z, r, p, y, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az]
+    # Your config: Roll/Pitch/Yaw=False, Yaw=True.
+    
     imu0_differential: false
     imu0_queue_size: 10
     imu0_remove_gravitational_acceleration: true
 
-
     odom0: /odometry/gps
-
     odom0_config: [true,  true,  false,
                    false, false, false,
                    false, false, false,
@@ -31,14 +34,21 @@ ekf_filter_node:
     odom0_differential: false
     odom0_queue_size: 10
 
+
 navsat_transform_node:
   ros__parameters:
     frequency: 10.0
-    delay: 0.0
-    magnetic_declination_radians: 0.0  # UPDATE THIS for your city (Google "Magnetic Declination NY")
-    yaw_offset: 0.0                    # Adjust if IMU does not point East at startup
+    transform_timeout: 1.5   
+    delay: 3.0               
+    base_link_frame: base_link
+    gps_frame: gps_link      # Matches your /gps/data header
+    magnetic_declination_radians: 0.0  
+    yaw_offset: 0.0                    
     zero_altitude: true
-    broadcast_cartesian_transform: true # Publishes 'map' -> 'odom' to link GPS world to Local world
+    broadcast_cartesian_transform: False 
     publish_filtered_gps: true
     use_odometry_yaw: false
-    wait_for_datum: false              # Set true if you want a fixed "Home" point every time
+    wait_for_datum: True
+    transform_time_offset: 0.0
+    # and increase timeout so it doesn't give up:
+    transform_timeout: 2.0

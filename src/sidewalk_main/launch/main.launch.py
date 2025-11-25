@@ -24,6 +24,17 @@ def generate_launch_description():
         default_value='boxx',
         description='Options: frodobot, boxx'
     )
+    tf_imu = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments = ['0.24', '0', '0.355', '0', '0', '0', 'base_link', 'imu_link']
+    )
+    
+    tf_gps = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments = ['0', '0', '0.5', '0', '0', '0', 'base_link', 'gps_link']
+    )
 
     arg_perception = DeclareLaunchArgument(
         'perception_mode',
@@ -125,6 +136,8 @@ def generate_launch_description():
         twist_mux_node,
         localization,
         ui_launch,
+        tf_imu,
+        tf_gps,
         node_robot_state_publisher,
         node_boxx,
         node_frodobot,

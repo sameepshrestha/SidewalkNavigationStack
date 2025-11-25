@@ -15,13 +15,21 @@ def generate_launch_description():
         executable='navsat_transform_node',
         name='navsat_transform_node',
         output='screen',
-        parameters=[ekf_config_file],
+        parameters=[
+            ekf_config_file, # Load basics
+            {
+
+                'delay': 3.0,                  # Wait 3s for URDF to load
+                'transform_timeout': 2.0,      # Wait 2s for TF lookup (Crucial)
+                'wait_for_datum': False}
+        ],
         remappings=[
-            ('imu/data', '/imu/data'),          # Input IMU
-            ('gps/fix', '/gps/data'),            # Input GPS
-            ('odometry/gps', '/odometry/gps')   # Output X/Y (Intermediate topic)
-        ]
-    )
+            ('imu/data', '/imu/data'),          
+            ('gps/fix', '/gps/data'),           
+            ('odometry/gps', '/odometry/gps'),   
+            ('odometry/filtered', '/odometry/global') 
+        ])
+   
 
 
     ekf_node = Node(

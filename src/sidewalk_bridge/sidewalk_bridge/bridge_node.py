@@ -48,7 +48,7 @@ class BridgeNode(Node):
             self.publish_image(frame_right,"right_camera_link", self.pub_right, current_time)
         data = self.client.get_last_msg
         if data is not None:
-            self.publish_imu(data)
+            self.publish_imu(data, current_time)
         if hasattr(data,'gps') and data.gps.lat != 1000:
             self.publish_raw_gps(data, current_time)
 
@@ -65,9 +65,9 @@ class BridgeNode(Node):
         
         self.pub_gps.publish(nav_msg)
 
-    def publish_imu(self,data):
+    def publish_imu(self,data, current_time):
         imu_msg = Imu()
-        imu_msg.header.stamp = self.get_clock().now().to_msg()
+        imu_msg.header.stamp = current_time
         imu_msg.header.frame_id = "imu_link"
         # Linear Acceleration (g -> m/s^2)
         imu_msg.linear_acceleration.x = data.imu.accel_x * 9.80665
