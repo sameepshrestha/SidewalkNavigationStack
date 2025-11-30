@@ -136,6 +136,17 @@ def generate_launch_description():
         arguments=rviz_args
     )
 
+    node_depth_estimation = Node(
+        package='sidewalk_depthestimation',
+        executable='depth_node', 
+        name='depth_estimator',
+        output='screen',
+        # Check python script for subscriber topic. Usually /camera/front/image_raw
+        remappings=[
+            ('/camera/front/image_raw', '/camera/front/image_raw') 
+        ],
+    )
+    
     return LaunchDescription([
         arg_robot,
         arg_perception,
@@ -149,6 +160,7 @@ def generate_launch_description():
         node_robot_state_publisher,
         node_boxx,
         node_frodobot,
+        node_depth_estimation,
         rviz,
         node_osm_planner
 

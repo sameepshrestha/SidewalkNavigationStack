@@ -20,7 +20,8 @@ def generate_launch_description():
         name='web_video_server',
         parameters=[{
             'port': 8081,              
-            'server_threads': 2,
+            'server_threads': 4,
+            'ros_threads': 2,
             'ros_transport': 'best_effort' 
         }]
     ) # <--- THIS WAS MISSING BEFORE

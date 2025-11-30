@@ -3,61 +3,102 @@
 <head>
     <meta charset="UTF-8">
     <title>Sidewalk Robot Dashboard</title>
-    <!-- Import ROSLIBJS to talk to rosbridge -->
     <script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
     <style>
-        body { font-family: sans-serif; background-color: #222; color: white; }
-        .container { display: flex; gap: 20px; padding: 20px; }
-        .video-box { border: 2px solid #555; }
-        h2 { margin-top: 0; }
-        .data-panel { background: #333; padding: 20px; min-width: 250px; }
-        .stat { font-size: 1.2em; margin-bottom: 10px; }
-        .val { color: #00ff00; font-weight: bold; }
+        body { font-family: sans-serif; background-color: #222; color: white; margin: 0; padding: 20px; }
+        .main-layout { display: flex; flex-wrap: wrap; gap: 20px; }
+        
+        /* Video Containers */
+        .video-box { border: 2px solid #555; background: black; width: 640px; height: 480px; display: flex; align-items: center; justify-content: center; position: relative; }
+        .video-box h2 { position: absolute; top: 0; left: 0; background: rgba(0,0,0,0.7); margin: 0; padding: 5px 10px; font-size: 14px; z-index: 10; }
+        img { display: block; max-width: 100%; max-height: 100%; }
+
+        /* Data & Control Panels */
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        .data-panel { background: #333; padding: 20px; min-width: 250px; border-radius: 8px; border: 1px solid #444; }
+        .stat { font-size: 1.1em; margin-bottom: 8px; }
+        .val { color: #00ff00; font-weight: bold; margin-left: 10px; }
+        
+        /* Input Styling */
+        input[type="number"] { width: 100%; padding: 8px; margin-bottom: 10px; background: #444; color: white; border: 1px solid #666; border-radius: 4px; }
+        button { width: 100%; background: #009900; color: white; padding: 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        button:hover { background: #00bb00; }
+        label { font-size: 0.9em; color: #ccc; }
     </style>
 </head>
 <body>
 
-    <h1>Robot Mission Control</h1>
+    <h1 style="margin-top: 0;">Robot Mission Control</h1>
 
-    <div class="container">
-        <!-- 1. RAW VIDEO STREAM (From WebRTC -> ROS -> MJPEG) -->
-        <div class="video-box">
-            <h2>Front Camera</h2>
-            <!-- Using localhost:8080 from web_video_server -->
-            <img src="http://localhost:8081/stream?topic=/camera/front/image_raw&type=mjpeg&width=640&ros2_qos_reliability=best_effort" width="640" height="480" />
+    <div class="main-layout">
+        
+        <!-- VIDEO COLUMN -->
+        <div>
+            <!-- 1. FRONT CAMERA (High Quality) -->
+            <div class="video-box">
+                <h2>Front Camera</h2>
+                <img id="cam1" width="640" height="480" alt="Connecting to Camera..." />
+            </div>
+            
+            <br>
+
+            <!-- 2. DEPTH STREAM (High Quality) -->
+            <div class="video-box">
+                <h2>Depth Estimation (DA3)</h2>
+                <img id="cam2" width="640" height="480" alt="Connecting to Depth Node..." />
+            </div>
         </div>
 
-        <!-- 2. AI SEGMENTATION STREAM (From SAM 3 Node) -->
-        <div class="video-box">
-            <h2>SAM 3 Mask</h2>
-            <img src="http://localhost:8081/stream?topic=/perception/sidewalk_mask&type=mjpeg&width=640" width="640" height="480" />
-        </div>
+        <!-- CONTROLS COLUMN -->
+        <div class="sidebar">
+            
+            <!-- TELEMETRY -->
+            <div class="data-panel">
+                <h2 style="margin-top:0">Telemetry</h2>
+                <div class="stat">Status: <span id="status" class="val" style="color:red">Connecting...</span></div>
+                <hr style="border-color:#555">
+                <div class="stat">GPS Lat: <span id="lat" class="val">--</span></div>
+                <div class="stat">GPS Lon: <span id="lon" class="val">--</span></div>
+                <div class="stat">IMU Yaw: <span id="yaw" class="val">--</span></div>
+            </div>
 
-        <!-- 3. LIVE DATA (Via Websockets) -->
-        <div class="data-panel">
-            <h2>Telemetry</h2>
-            <div class="stat">Status: <span id="status" class="val" style="color:red">Connecting...</span></div>
-            <hr>
-            <div class="stat">GPS Lat: <span id="lat" class="val">--</span></div>
-            <div class="stat">GPS Lon: <span id="lon" class="val">--</span></div>
-            <div class="stat">IMU Yaw: <span id="yaw" class="val">--</span></div>
+            <!-- SET GOAL (RESTORED) -->
+            <div class="data-panel">
+                <h2 style="margin-top:0">Set Navigation Goal</h2>
+                
+                <label>Target Latitude</label>
+                <input type="number" id="goal_lat" step="0.000001" value="40.7128">
+                
+                <label>Target Longitude</label>
+                <input type="number" id="goal_lon" step="0.000001" value="-74.0060">
+                
+                <br><br>
+                <button onclick="sendGpsGoal()">SEND WAYPOINT</button>
+            </div>
+
         </div>
     </div>
-    <div class="data-panel">
-    <h2>Set Goal</h2>
-    <label>Lat: <input type="number" id="goal_lat" step="0.000001" value="40.7128"></label><br>
-    <label>Lon: <input type="number" id="goal_lon" step="0.000001" value="-74.0060"></label><br>
-    <br>
-    <button onclick="sendGpsGoal()" style="background: green; color: white; padding: 10px;">GO TO GPS</button>
-</div>
-
-
 
     <script>
-        // --- 1. CONNECT TO ROSBRIDGE ---
-        var ros = new ROSLIB.Ros({
-            url : 'ws://localhost:9090' // Default rosbridge port
-        });
+        function loadStreams() {
+            var time = new Date().getTime(); // Cache buster
+            var cam1 = document.getElementById("cam1");
+            var cam2 = document.getElementById("cam2");
+
+            cam1.src = "http://localhost:8081/stream?topic=/camera/front/image_raw&type=mjpeg&width=640&quality=45&t=" + time;
+            
+            cam2.src = "http://127.0.0.1:8081/stream?topic=/da3/depth&type=mjpeg&width=640&quality=45&t=" + time;
+            
+            // Auto-Reconnect Logic
+            cam1.onerror = function() { setTimeout(function(){ cam1.src = cam1.src; }, 2000); };
+            cam2.onerror = function() { setTimeout(function(){ cam2.src = cam2.src; }, 2000); };
+        }
+        window.onload = loadStreams;
+    </script>
+
+    <script>
+        // Connect to Rosbridge
+        var ros = new ROSLIB.Ros({ url : 'ws://localhost:9090' });
 
         ros.on('connection', function() {
             document.getElementById("status").innerHTML = "ONLINE";
@@ -69,12 +110,12 @@
             document.getElementById("status").style.color = "red";
         });
 
+        // --- SUBSCRIBERS ---
         var gpsListener = new ROSLIB.Topic({
             ros : ros,
-            name : '/gps/data',  // Topic from bridge node
+            name : '/gps/data',
             messageType : 'sensor_msgs/NavSatFix'
         });
-
         gpsListener.subscribe(function(msg) {
             document.getElementById("lat").innerHTML = msg.latitude.toFixed(6);
             document.getElementById("lon").innerHTML = msg.longitude.toFixed(6);
@@ -85,15 +126,11 @@
             name : '/imu/data',
             messageType : 'sensor_msgs/Imu'
         });
-
         imuListener.subscribe(function(msg) {
-            // Very rough yaw check (z-orientation)
             document.getElementById("yaw").innerHTML = msg.orientation.z.toFixed(2);
         });
-    </script>
 
-        <script>
-        // 1. Setup the Topic publisher
+        // --- PUBLISHERS ---
         var goalTopic = new ROSLIB.Topic({
             ros : ros,
             name : '/gui/set_gps_goal',
@@ -104,24 +141,24 @@
             var lat = parseFloat(document.getElementById("goal_lat").value);
             var lon = parseFloat(document.getElementById("goal_lon").value);
 
+            if (isNaN(lat) || isNaN(lon)) {
+                alert("Please enter valid GPS coordinates.");
+                return;
+            }
+
              var msg = new ROSLIB.Message({
-                header: {
-                    frame_id: "gps_link"
-                },
-                status: {
-                    status: 0,
-                    service: 1
-                },
+                header: { frame_id: "gps_link" },
+                status: { status: 0, service: 1 },
                 latitude: lat,
                 longitude: lon,
-                altitude: 0.0, // Assuming 2D navigation
+                altitude: 0.0,
                 position_covariance: [0,0,0,0,0,0,0,0,0],
                 position_covariance_type: 0
             });
 
             goalTopic.publish(msg);
             console.log("Sent NavSatFix Goal:", lat, lon);
-            alert("Mission Sent! Robot moving to: " + lat + ", " + lon);
+            alert("Mission Sent!\nTarget: " + lat + ", " + lon);
         }
     </script>
 </body>

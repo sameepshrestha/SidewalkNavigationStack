@@ -1,9 +1,27 @@
+#!/usr/bin/env python3
+import sys
+import os
+
+# --- HARD FIX: Force Python to find the Depth Anything Source ---
+# This tells the script exactly where to look for the library
+# based on where you cloned it.
+DA3_PATH = "/home/sameep/phd_research/sidewalkauto_ws/src/Depth-Anything-3/src" # Point to the 'src' inner folder
+if os.path.exists(DA3_PATH):
+    sys.path.append(DA3_PATH)
+else:
+    # Fallback if your repo structure is flat (without inner 'src')
+    sys.path.append("/home/sameep/phd_research/sidewalkauto_ws/src/Depth-Anything-3")
+# -------------------------------------------------------------
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import torch
-# Import the DA3 API provided in your text
+import cv2
+import numpy as np
+
+# This import should work now because we forced the path above
 from depth_anything_3.api import DepthAnything3
 
 class DepthAnything3Node(Node):
@@ -24,7 +42,7 @@ class DepthAnything3Node(Node):
         # 2. Setup ROS Communication
         self.subscription = self.create_subscription(
             Image,
-            '/camera/image_raw',
+            '/camera/front/image_raw',
             self.listener_callback,
             10)
         self.publisher_ = self.create_publisher(Image, '/da3/depth', 10)
