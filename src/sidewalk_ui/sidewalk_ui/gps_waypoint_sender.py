@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import QoSProfile, DurabilityPolicy # <--- Import this
 from sensor_msgs.msg import NavSatFix
 from robot_localization.srv import SetDatum
-from geographic_msgs.msg import GeoPose
 
 class DatumAverager(Node):
     def __init__(self):
@@ -14,20 +13,23 @@ class DatumAverager(Node):
         self.datum_set = False
 
         self.subscription = self.create_subscription(
-            NavSatFix,
-            '/gps/data',
-            self.gps_callback,
-            10)
+            NavSatFix, '/gps/data', self.gps_callback, 10)
 
-        # Create Client for the SetDatum service
         self.datum_client = self.create_client(SetDatum, '/datum')
+
+        # --- THE FIX: Create a LATCHED (Transient Local) Publisher ---
+        latching_qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
+        
+        # NOTE: We do NOT put '10' here. We put the qos object directly.
+        self.datum_pub = self.create_publisher(NavSatFix, '/verified_datum', latching_qos)
 
         self.get_logger().info("Datum Averager Started: Waiting for GPS data...")
 
     def gps_callback(self, msg):
-        # If datum is already set, stop processing to save CPU
-        if self.datum_set:
-            return
+        if self.datum_set: return
+
+        # Ignore invalid zeros
+        if abs(msg.latitude) < 0.1 and abs(msg.longitude) < 0.1: return
 
         self.samples.append(msg)
         self.get_logger().info(f"Collecting GPS sample {len(self.samples)}/{self.target_sample_count}")
@@ -42,49 +44,41 @@ class DatumAverager(Node):
 
         self.get_logger().info(f"Calculated Average: Lat: {avg_lat}, Lon: {avg_lon}")
 
-        while not self.datum_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Waiting for /datum service to be available...')
+        # 1. Call EKF Service (Navsat Transform)
+        if self.datum_client.wait_for_service(timeout_sec=1.0):
+            request = SetDatum.Request()
+            request.geo_pose.position.latitude = avg_lat
+            request.geo_pose.position.longitude = avg_lon
+            request.geo_pose.position.altitude = avg_alt
+            request.geo_pose.orientation.w = 1.0
+            
+            future = self.datum_client.call_async(request)
+            future.add_done_callback(self.service_response_callback)
+        else:
+            self.get_logger().warn("Datum service not available! Proceeding anyway...")
 
-        request = SetDatum.Request()
-        request.geo_pose.position.latitude = avg_lat
-        request.geo_pose.position.longitude = avg_lon
-        request.geo_pose.position.altitude = avg_alt
+        # 2. Publish to OSM Planner (LATCHED)
+        msg = NavSatFix()
+        msg.latitude = avg_lat
+        msg.longitude = avg_lon
+        msg.altitude = avg_alt
         
-        # Orientation (Identity / Neutral)
-        request.geo_pose.orientation.w = 1.0
-        request.geo_pose.orientation.x = 0.0
-        request.geo_pose.orientation.y = 0.0
-        request.geo_pose.orientation.z = 0.0
-
-        # 4. Call Service Async
-        self.future = self.datum_client.call_async(request)
-        self.future.add_done_callback(self.service_response_callback)
+        self.datum_pub.publish(msg) 
+        self.get_logger().info("PUBLISHED VERIFIED DATUM (Latched)")
         
-        # Mark as done so we don't try to set it again
         self.datum_set = True
 
     def service_response_callback(self, future):
         try:
-            response = future.result()
-            self.get_logger().info("SUCCESS: Datum service called successfully.")
-            
-            # IF YOU WANT THIS NODE TO STOP AFTER SETTING DATUM, UNCOMMENT BELOW:
-            # import sys; sys.exit(0)
-            
+            future.result()
+            self.get_logger().info("SUCCESS: EKF Datum set.")
         except Exception as e:
             self.get_logger().error(f"Service call failed: {e}")
 
 def main(args=None):
     rclpy.init(args=args)
-    node = DatumAverager()
-    
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
+    rclpy.spin(DatumAverager())
+    rclpy.shutdown()
 
 if __name__ == '__main__':
     main()

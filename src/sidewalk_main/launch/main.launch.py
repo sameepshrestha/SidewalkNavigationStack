@@ -116,6 +116,14 @@ def generate_launch_description():
             PythonExpression(["'", robot_mode, "' == 'frodobot'"])
         )
     )
+    node_osm_planner = Node(
+        package='sidewalk_osmplanner',
+        executable='osm_planner',
+        name='osm_planner',
+        output='screen'  # Added so you can see your prints
+    )
+    
+    
     
     rviz_config_path = '/home/sameep/phd_research/sidewalkauto_ws/src/sidewalk_main/launch/sidewalk_nav.rviz'
     rviz_args = ['-d', rviz_config_path] if os.path.exists(rviz_config_path) else []
@@ -142,5 +150,6 @@ def generate_launch_description():
         node_boxx,
         node_frodobot,
         rviz,
+        node_osm_planner
 
     ])

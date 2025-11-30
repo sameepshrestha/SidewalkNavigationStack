@@ -97,22 +97,31 @@
         var goalTopic = new ROSLIB.Topic({
             ros : ros,
             name : '/gui/set_gps_goal',
-            messageType : 'geometry_msgs/Point' // Using Point to cheat (x=Lat, y=Lon)
+            messageType : 'sensor_msgs/NavSatFix' 
         });
 
         function sendGpsGoal() {
             var lat = parseFloat(document.getElementById("goal_lat").value);
             var lon = parseFloat(document.getElementById("goal_lon").value);
 
-            var msg = new ROSLIB.Message({
-                x : lat,
-                y : lon,
-                z : 0.0
+             var msg = new ROSLIB.Message({
+                header: {
+                    frame_id: "gps_link"
+                },
+                status: {
+                    status: 0,
+                    service: 1
+                },
+                latitude: lat,
+                longitude: lon,
+                altitude: 0.0, // Assuming 2D navigation
+                position_covariance: [0,0,0,0,0,0,0,0,0],
+                position_covariance_type: 0
             });
 
             goalTopic.publish(msg);
-            console.log("Sent GPS Goal: " + lat + ", " + lon);
-            alert("Goal Sent! Robot calculating path...");
+            console.log("Sent NavSatFix Goal:", lat, lon);
+            alert("Mission Sent! Robot moving to: " + lat + ", " + lon);
         }
     </script>
 </body>
