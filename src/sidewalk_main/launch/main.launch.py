@@ -5,6 +5,8 @@ from launch.substitutions import LaunchConfiguration, PythonExpression, Command
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import os
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.descriptions import ComposableNode
 from launch.actions import IncludeLaunchDescription      # CORRECT
 from launch_ros.parameter_descriptions import ParameterValue
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -34,6 +36,18 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         arguments = ['0', '0', '0.5', '0', '0', '0', 'base_link', 'gps_link']
+    )
+
+
+    tf_cam = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments = [
+            '0.28', '0', '0.355',      # Translation (X, Y, Z)
+            '-1.5707', '0', '-1.5707', # Rotation (Yaw, Pitch, Roll) - Note the order match
+            'base_link',               # Parent frame
+            'front_camera_link' # Child frame (Must match Depth Node output)
+        ]
     )
 
     arg_perception = DeclareLaunchArgument(
@@ -123,7 +137,27 @@ def generate_launch_description():
         output='screen'  # Added so you can see your prints
     )
     
-    
+   
+    container_perception = ComposableNodeContainer(
+        name='perception_container',
+        namespace='',
+        package='rclcpp_components',
+        executable='component_container',
+        composable_node_descriptions=[
+            ComposableNode(
+                package='depth_image_proc',
+                plugin='depth_image_proc::PointCloudXyzrgbNode',
+                name='point_cloud_xyzrgb',
+                remappings=[
+                    ('rgb/camera_info', '/camera/front/camera_info'),
+                    ('rgb/image_rect_color', '/semantic_cam/image_rect_color'),
+                    ('depth_registered/image_rect', '/da3/depth'),
+                    ('points', '/da3/points') # <--- Visualize THIS in RViz
+                ]
+            ),
+        ],
+        output='screen',
+    )
     
     rviz_config_path = '/home/sameep/phd_research/sidewalkauto_ws/src/sidewalk_main/launch/sidewalk_nav.rviz'
     rviz_args = ['-d', rviz_config_path] if os.path.exists(rviz_config_path) else []
@@ -157,10 +191,12 @@ def generate_launch_description():
         ui_launch,
         tf_imu,
         tf_gps,
+        tf_cam,
         node_robot_state_publisher,
         node_boxx,
         node_frodobot,
         node_depth_estimation,
+        container_perception,
         rviz,
         node_osm_planner
 

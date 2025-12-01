@@ -24,6 +24,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            # executable_name = package_folder.script_file_name:function_name
+            'depth_node = sidewalk_depthestimation.dp:main',
+        
         ],
     },
 )
