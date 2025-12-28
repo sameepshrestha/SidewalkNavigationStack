@@ -21,7 +21,7 @@ def generate_launch_description():
 
                 'delay': 3.0,                  # Wait 3s for URDF to load
                 'transform_timeout': 2.0,      # Wait 2s for TF lookup (Crucial)
-                'wait_for_datum': False}
+                'wait_for_datum': True}
         ],
         remappings=[
             ('imu/data', '/imu/data'),          

@@ -33,7 +33,7 @@ class BridgeNode(Node):
             self.get_logger().info("Webrtc thread started")
         except Exception as e:
             self.get_logger().error("Failed to start webrtc client: {e}")
-        self.timer = self.create_timer(0.033, self.update_loop)
+        self.timer = self.create_timer(0.1, self.update_loop)
 
     def update_loop(self):  # current time to sensor recorded data, need to change this 
         current_time = self.get_clock().now().to_msg()
@@ -49,8 +49,11 @@ class BridgeNode(Node):
         data = self.client.get_last_msg
         if data is not None:
             self.publish_imu(data, current_time)
-        if hasattr(data,'gps') and data.gps.lat != 1000:
-            self.publish_raw_gps(data, current_time)
+        if hasattr(data, 'gps'):
+            if data.gps.lat != 1000 and (abs(data.gps.lat) > 0.001 or abs(data.gps.lon) > 0.001):
+                self.publish_raw_gps(data, current_time)
+            else:
+                pass
 
     def publish_raw_gps(self, data, current_time):
         nav_msg = NavSatFix()

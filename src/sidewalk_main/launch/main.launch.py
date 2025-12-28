@@ -43,7 +43,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         arguments = [
-            '0.28', '0', '0.355',      # Translation (X, Y, Z)
+            '0.28', '0', '0.79',      # Translation (X, Y, Z)
             '-1.5707', '0', '-1.5707', # Rotation (Yaw, Pitch, Roll) - Note the order match
             'base_link',               # Parent frame
             'front_camera_link' # Child frame (Must match Depth Node output)
@@ -134,7 +134,6 @@ def generate_launch_description():
         package='sidewalk_osmplanner',
         executable='osm_planner',
         name='osm_planner',
-        output='screen'  # Added so you can see your prints
     )
     
    
@@ -158,7 +157,16 @@ def generate_launch_description():
         ],
         output='screen',
     )
-    
+    mapping_launch = IncludeLaunchDescription(
+    PythonLaunchDescriptionSource(
+        os.path.join(
+            get_package_share_directory('sidewalk_mapping'),
+            'launch',
+            'mapping.launch.py'
+        )
+    )
+)
+
     rviz_config_path = '/home/sameep/phd_research/sidewalkauto_ws/src/sidewalk_main/launch/sidewalk_nav.rviz'
     rviz_args = ['-d', rviz_config_path] if os.path.exists(rviz_config_path) else []
 
@@ -175,10 +183,22 @@ def generate_launch_description():
         executable='depth_node', 
         name='depth_estimator',
         output='screen',
-        # Check python script for subscriber topic. Usually /camera/front/image_raw
+        # Check pytvon script for subscriber topic. Usually /camera/front/image_raw
         remappings=[
             ('/camera/front/image_raw', '/camera/front/image_raw') 
         ],
+    )
+
+    grid_map_node = Node(
+        package='sidewalk_mapping_cpp',
+        executable='sidewalk_grid_node',
+        name='sidewalk_grid_node',
+        parameters=[{
+            'grid_resolution': 0.05,
+            'grid_size': 10.0,
+            'frame_id': 'base_link' # Must match your EKF frame
+        }],
+        output='screen'
     )
     
     return LaunchDescription([
@@ -192,12 +212,13 @@ def generate_launch_description():
         tf_imu,
         tf_gps,
         tf_cam,
-        node_robot_state_publisher,
+        node_osm_planner,
         node_boxx,
         node_frodobot,
         node_depth_estimation,
+        node_robot_state_publisher,
         container_perception,
+        grid_map_node,
         rviz,
-        node_osm_planner
 
     ])

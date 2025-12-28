@@ -17,3 +17,54 @@ log/
 
 .vs_codee/
 src/Depth-Anything-3/
+# ==============================
+# Build / ROS / Python files
+# ==============================
+build/
+install/
+log/
+devel/
+
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# ==============================
+# Dataset / cache / generated files
+# ==============================
+my_first_dataset*/
+my_first_dataset2*/
+my_first_dataset3*/
+cache/
+src/cache/
+
+# Grid maps / generated maps
+src/grid_map/
+src/gridmap_stub/
+src/sidewalk_mapping/
+src/sidewalk_mapping_cpp/
+*.graphml
+
+# ROS bag / other logs
+*.bag
+*.bag.active
+*.bag.index
+
+# Temp / miscellaneous
+*.swp
+*.swo
+*.tmp
+*.temp
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Graph / frame exports
+*.gv
+*.pdf
