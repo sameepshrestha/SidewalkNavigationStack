@@ -1,29 +1,52 @@
-grid_map_filters:
-  - name: inpaint
-    type: gridMapFilters/InpaintFilter
-    params:
-      input_layer: elevation
-      output_layer: elevation_filled
-      radius: 0.1 # Fills small holes in your map
+sidewalk_grid_node:
+  ros__parameters:
+    grid_map_filters:
+      filter1:
+        name: "inpaint"
+        type: "gridMapCv/InpaintFilter"
+        params:
+          input_layer: "elevation"
+          output_layer: "elevation_inpainted"
+          radius: 0.08  # No quotes for numeric
 
-  - name: surface_normals
-    type: gridMapFilters/NormalVectorsFilter
-    params:
-      input_layer: elevation_filled
-      output_layers_prefix: normal_
-      radius: 0.2
-      parallelization_enabled: true
+      filter2:
+        name: "smooth"
+        type: "gridMapFilters/MeanInRadiusFilter"
+        params:
+          input_layer: "elevation_inpainted"
+          output_layer: "elevation_smooth"
+          radius: 0.1
 
-  - name: slope
-    type: gridMapFilters/SlopeFilter
-    params:
-      input_layer: elevation_filled
-      output_layer: slope # This is your GRADIENT
+      filter3:
+        name: "normals"
+        type: "gridMapFilters/NormalVectorsFilter"
+        params:
+          input_layer: "elevation_smooth"
+          output_layers_prefix: "normal_"
+          radius: 0.2
+          normal_vector_positive_axis: "z"
 
-  - name: roughness
-    type: gridMapFilters/SlidingWindowMathFilter
-    params:
-      input_layer: elevation_filled
-      output_layer: roughness
-      window_size: 3 # 3x3 cells
-      operation: stddev # Standard deviation of height = roughness
+      filter4:
+        name: "slope"
+        type: "gridMapFilters/MathExpressionFilter"
+        params:
+          output_layer: "slope"
+          expression: "acos(normal_z)"   # Radians, no conversion needed  # Fixed: no 'degrees()' function
+
+      filter5:
+        name: "roughness"
+        type: "gridMapFilters/MathExpressionFilter"
+        params:
+          output_layer: "roughness"
+          expression: "abs(elevation_inpainted - elevation_smooth)"
+
+      filter6:
+        name: "edges"
+        type: "gridMapFilters/SlidingWindowMathExpressionFilter"
+        params:
+          input_layer: "slope"
+          output_layer: "edges"
+          expression: "sqrt(sumOfFinites(square(slope - meanOfFinites(slope))) ./ numberOfFinites(slope))"
+          compute_empty_cells: false
+          edge_handling: "crop"
+          window_length: 0.2

@@ -189,17 +189,20 @@ def generate_launch_description():
         ],
     )
 
+    config_dir = os.path.join(get_package_share_directory('sidewalk_mapping_cpp'), 'config')
+    filters_config = os.path.join(config_dir, 'filters.yaml')
+    print("Filters YAML exists:", os.path.exists(filters_config))
+
     grid_map_node = Node(
         package='sidewalk_mapping_cpp',
         executable='sidewalk_grid_node',
         name='sidewalk_grid_node',
-        parameters=[{
-            'grid_resolution': 0.05,
-            'grid_size': 10.0,
-            'frame_id': 'base_link' # Must match your EKF frame
-        }],
-        output='screen'
+        output='screen',
+        parameters=[
+            filters_config
+        ]
     )
+
     
     return LaunchDescription([
         arg_robot,

@@ -13,7 +13,6 @@ find_package(grid_map_filters REQUIRED)
 
 add_executable(sidewalk_grid_node src/sidewalk_grid_node.cpp)
 
-# Let the packages provide their include directories
 ament_target_dependencies(
   sidewalk_grid_node
   rclcpp 
@@ -26,6 +25,15 @@ ament_target_dependencies(
   grid_map_filters
 )
 
-install(TARGETS sidewalk_grid_node DESTINATION lib/${PROJECT_NAME})
+# Install the node binary
+install(TARGETS sidewalk_grid_node
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Install config files (like your filters.yaml)
+install(
+  DIRECTORY config/
+  DESTINATION share/${PROJECT_NAME}/config
+)
 
 ament_package()
