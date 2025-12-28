@@ -1,0 +1,29 @@
+grid_map_filters:
+  - name: inpaint
+    type: gridMapFilters/InpaintFilter
+    params:
+      input_layer: elevation
+      output_layer: elevation_filled
+      radius: 0.1 # Fills small holes in your map
+
+  - name: surface_normals
+    type: gridMapFilters/NormalVectorsFilter
+    params:
+      input_layer: elevation_filled
+      output_layers_prefix: normal_
+      radius: 0.2
+      parallelization_enabled: true
+
+  - name: slope
+    type: gridMapFilters/SlopeFilter
+    params:
+      input_layer: elevation_filled
+      output_layer: slope # This is your GRADIENT
+
+  - name: roughness
+    type: gridMapFilters/SlidingWindowMathFilter
+    params:
+      input_layer: elevation_filled
+      output_layer: roughness
+      window_size: 3 # 3x3 cells
+      operation: stddev # Standard deviation of height = roughness

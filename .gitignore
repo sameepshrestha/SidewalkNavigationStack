@@ -47,7 +47,6 @@ src/cache/
 src/grid_map/
 src/gridmap_stub/
 src/sidewalk_mapping/
-src/sidewalk_mapping_cpp/
 *.graphml
 
 # ROS bag / other logs
