@@ -50,3 +50,25 @@ sidewalk_grid_node:
           compute_empty_cells: false
           edge_handling: "crop"
           window_length: 0.2
+      filter7: # Compute traversability as normalized weighted sum of slope and roughness.
+        name: traversability_cost
+        type: gridMapFilters/MathExpressionFilter
+        params:
+          output_layer: traversability_cost
+          expression: 25 *( slope) + 25 * (roughness ) + 50 * (nav2_occupancy / 100.0)
+
+      filter8:  # Set lower threshold on traversability.
+        name: traversability_lower_threshold
+        type: gridMapFilters/ThresholdFilter
+        params:
+          layer: traversability_cost
+          lower_threshold: 0.0
+          set_to: 0.0
+
+      filter9:  # Set upper threshold on traversability.
+        name: traversability_upper_threshold
+        type: gridMapFilters/ThresholdFilter
+        params:
+          layer: traversability_cost
+          upper_threshold: 100.0
+          set_to: 100.0 

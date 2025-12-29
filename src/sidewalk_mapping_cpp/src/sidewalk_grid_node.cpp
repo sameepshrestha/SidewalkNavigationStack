@@ -63,6 +63,7 @@ public:
 
         grid_map_pub_ = this->create_publisher<grid_map_msgs::msg::GridMap>("/gridmap/semantic_map", 10);
         nav_grid_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("/local_costmap/published_costmap", 10);
+        final_cost_map  = this->create_publisher<nav_msgs::msg::OccupancyGrid>("local_costmap/traversibility_cost",10);
     }
 
 private:
@@ -149,7 +150,7 @@ private:
         std::vector<std::string> layers_to_check = {
             "elevation", "elevation_inpainted", "elevation_smooth",
             "normal_x", "normal_y", "normal_z",
-            "slope", "roughness", "edges", "nav2_occupancy", "semantics"
+            "slope", "roughness", "edges", "nav2_occupancy", "semantics","traversability_cost"
         };
 
         for (const auto& layer : layers_to_check) {
@@ -178,6 +179,16 @@ private:
         auto occupancy_msg = std::make_unique<nav_msgs::msg::OccupancyGrid>();
         GridMapRosConverter::toOccupancyGrid(map_, "nav2_occupancy", -1.0, 100.0, *occupancy_msg);
         nav_grid_pub_->publish(std::move(occupancy_msg));
+
+        auto traversability_msg = std::make_unique<nav_msgs::msg::OccupancyGrid>();
+        GridMapRosConverter::toOccupancyGrid(
+            map_,
+            "traversability_cost",   // the layer created and clamped by your filters
+            -1.0,                    // values <= -1.0 → unknown (-1 in output)
+            100.0,                   // values >= 100.0 → lethal (100 in output)
+            *traversability_msg
+        );
+        final_cost_map->publish(std::move(traversability_msg));
     }
 
     GridMap map_;
@@ -187,6 +198,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
     rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr grid_map_pub_;
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr nav_grid_pub_;
+    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr final_cost_map;
 };
 
 int main(int argc, char **argv) {
