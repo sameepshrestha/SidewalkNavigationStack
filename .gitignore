@@ -55,3 +55,7 @@ tags
 GTAGS
 GRTAGS
 GPATH
+
+# large binaries
+Globalrouter/global_planner/*.osm.pbf
+frodobot_bridge/*.deb
