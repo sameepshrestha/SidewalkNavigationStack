@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'heading_fusion'
+package_name = 'frodobot_localization'
 
 setup(
     name=package_name,
@@ -9,7 +9,7 @@ setup(
     data_files=[
         ('share/ament_index/resource_index/packages', ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', ['launch/heading_fusion.launch.py']),
+        ('share/' + package_name + '/launch', ['launch/heading_fusion.launch.py', 'launch/localization.launch.py']),
         ('share/' + package_name + '/config', ['config/heading_fusion.yaml', 'config/navsat_transform_example.yaml', 'config/ekf_example.yaml']),
         ('share/' + package_name, ['README.md']),
     ],
@@ -22,7 +22,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'heading_fusion_node = heading_fusion.heading_fusion_node:main',
+            'heading_fusion_node = frodobot_localization.heading_fusion_node:main',
         ],
     },
 )

@@ -7,7 +7,7 @@ import os
 
 
 def generate_launch_description():
-    pkg_share = get_package_share_directory('heading_fusion')
+    pkg_share = get_package_share_directory('frodobot_localization')
     default_config = os.path.join(pkg_share, 'config', 'heading_fusion.yaml')
 
     config_arg = DeclareLaunchArgument(
@@ -17,7 +17,7 @@ def generate_launch_description():
     )
 
     node = Node(
-        package='heading_fusion',
+        package='frodobot_localization',
         executable='heading_fusion_node',
         name='heading_fusion_node',
         output='screen',

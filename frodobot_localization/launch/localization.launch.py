@@ -26,12 +26,12 @@ def generate_launch_description():
         
         # Start our custom heading fusion node
         Node(
-            package='heading_fusion',
+            package='frodobot_localization',
             executable='heading_fusion_node',
             name='heading_fusion_node',
             output='screen',
             parameters=[
-                os.path.join(get_package_share_directory('heading_fusion'), 'config', 'heading_fusion.yaml')
+                os.path.join(get_package_share_directory('frodobot_localization'), 'config', 'heading_fusion.yaml')
             ]
         ),
     ])

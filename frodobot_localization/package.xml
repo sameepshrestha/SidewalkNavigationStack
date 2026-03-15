@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>heading_fusion</name>
+  <name>frodobot_localization</name>
   <version>0.1.0</version>
   <description>ROS 2 heading fusion node for GPS course-over-ground + IMU gyro, with optional external global yaw source.</description>
   <maintainer email="user@example.com">OpenAI</maintainer>
