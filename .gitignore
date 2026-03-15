@@ -59,3 +59,7 @@ GPATH
 # large binaries
 Globalrouter/global_planner/*.osm.pbf
 frodobot_bridge/*.deb
+
+# large binaries
+Globalrouter/global_planner/*.osm.pbf
+frodobot_bridge/*.deb
