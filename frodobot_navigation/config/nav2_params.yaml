@@ -1,0 +1,102 @@
+
+# Frame architecture:
+#   map    = GPS/UTM world frame (from navsat_transform)
+#   odom   = locally-consistent odometry (from ekf_node)
+#   base_link = robot body
+#
+# Goal (/goal_pose) is in map frame.
+controller_server:
+  ros__parameters:
+    controller_frequency: 10.0          # Hz — match your mapping + perception rate
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.5
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 0.3
+    progress_checker_plugins: ["progress_checker"]
+    goal_checker_plugins: ["goal_checker"]
+    controller_plugins: ["FollowPath"]
+
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.3     
+      movement_time_allowance: 10.0      
+    goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 1.5             
+      yaw_goal_tolerance: 0.5            
+      stateful: true
+    FollowPath:
+      plugin: "nav2_mppi_controller::MPPIController"
+      visualize_trajectories: true
+      # Trajectory sampling
+      time_steps: 30                    
+      model_dt: 0.1                      
+      batch_size: 1000                   
+      vx_std: 0.15                       
+      wz_std: 0.3                        
+      vx_max: 0.4                        
+      vx_min: 0.0                        
+      wz_max: 0.4                        
+      iteration_count: 2                 
+      temperature: 0.3                   
+      gamma: 0.015                       
+
+      motion_model: "DiffDrive"
+
+      # Each critic is a plugin that adds a penalty to sampled trajectories.
+      critics: ["ConstraintCritic", "DirectionCritic", "ObstaclesCritic", "PreferForwardCritic"]
+
+      ConstraintCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 4.0
+      DirectionCritic:
+        enabled: true
+        weight: 8.0
+        heading_topic: "/goal_heading"
+      ObstaclesCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 20.0               
+        repulsion_weight: 1.5
+        critical_weight: 20.0
+        consider_footprint: true       
+        collision_cost: 1000000.0
+        collision_margin_distance: 0.1  
+        near_goal_distance: 0.5
+      PreferForwardCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        threshold_to_consider: 0.5
+#  Local Costmap 
+# Sources traversability directly from frodobot_mapping output.
+# The map is in base_link frame (robot-centred rolling window).
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      update_frequency: 10.0
+      publish_frequency: 10.0
+      global_frame: odom               
+      robot_base_frame: base_link
+      rolling_window: true
+      width: 20                        
+      height: 20
+      resolution: 0.05                 
+      footprint: "[[0.19, 0.14], [0.19, -0.14], [-0.19, -0.14], [-0.19, 0.14]]"
+      plugins: ["traversability_layer", "inflation_layer"]
+      traversability_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: true
+        map_topic: /mapping/traversability
+        subscribe_to_updates: true
+        lethal_cost_threshold: 99
+
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 5.0        
+        inflation_radius: 0.3           
+
+      always_send_full_costmap: true
+
+

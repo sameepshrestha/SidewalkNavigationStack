@@ -1,0 +1,36 @@
+earth_rover_sdk_bridge:
+  ros__parameters:
+    sdk_base_url: "http://127.0.0.1:8000"
+    request_timeout_s: 3.0
+    verify_ssl: true
+    image_mode: "paired"    # front / rear / paired
+    image_rate_hz: 10.0
+    data_rate_hz: 10.0
+
+    base_frame: "base_link"
+    front_camera_frame: "front_camera_optical_frame"
+    rear_camera_frame: "rear_camera_optical_frame"
+    imu_frame: "imu_link"
+    gps_frame: "gps_link"
+
+    rpm_joint_names: ["wheel_fl", "wheel_fr", "wheel_rl", "wheel_rr"]
+    rpm_to_rad_s: 0.10471975512
+    publish_joint_positions: false
+    assume_orientation_is_degrees: true
+
+    front_camera_info:
+      width: 1024
+      height: 576
+      k: [581.5, 0.0, 498.0, 0.0, 570.9, 274.3, 0.0, 0.0, 1.0]
+      d: [0.0, 0.0, 0.0, 0.0, 0.0]
+    rear_camera_info:
+      width: 540
+      height: 360
+      k: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+      d: [0.0, 0.0, 0.0, 0.0, 0.0]
+    camera_distortion_model: "plumb_bob"
+
+    imu_linear_accel_cov: [0.2, 0.2, 0.2]
+    imu_angular_vel_cov: [0.05, 0.05, 0.05]
+    mag_cov: [0.5, 0.5, 0.5]
+

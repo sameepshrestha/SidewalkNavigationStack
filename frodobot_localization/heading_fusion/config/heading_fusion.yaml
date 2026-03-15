@@ -1,0 +1,29 @@
+heading_fusion_node:
+  ros__parameters:
+    imu_topic: /earth_rover/imu/data_raw
+    mag_topic: /earth_rover/imu/mag
+    gps_topic: /earth_rover/gps/fix
+    
+    output_imu_topic: /imu/data
+    output_odom_topic: /heading/odom
+
+    world_frame: odom
+    base_frame: base_link
+
+    # Fusion flags
+    use_mag: true
+    use_gps_correction: true
+
+    # Madgwick filter gain (Beta). Higher trusts accel/mag more, lower trusts gyro more.
+    madgwick_gain: 0.033
+
+    # Hard-iron offsets for magnetometer. Tune these by rotating robot 360 deg.
+    mag_offset_x: 0.0
+    mag_offset_y: 0.0
+    mag_offset_z: 0.0
+
+    # GPS course-over-ground settings
+    gps_window_size: 7
+    gps_min_distance_m: 1.5
+    gps_min_speed_mps: 0.25
+    gps_correction_gain: 0.02 # alpha filter for the continuous offset mapping

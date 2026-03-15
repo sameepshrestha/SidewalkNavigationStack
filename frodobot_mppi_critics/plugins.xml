@@ -1,0 +1,5 @@
+<library path="frodobot_mppi_critics">
+  <class name="mppi::critics::DirectionCritic" type="frodobot_mppi_critics::DirectionCritic" base_class_type="mppi::critics::CriticFunction">
+    <description>MPPI Critic that aligns trajectory vectors against goal vectors.</description>
+  </class>
+</library>

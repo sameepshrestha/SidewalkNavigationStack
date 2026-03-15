@@ -1,0 +1,14 @@
+# Example Route for FrodoBots GPS Waypoint Follower
+# Coordinates are provided as [lon, lat] or {"lon": X, "lat": Y}.
+#
+# IMPORTANT: Adjust these to an actual path in your test environment!
+# The start coordinate should be near your robot's spawn point.
+
+start:
+  lat: 38.837898
+  lon: -77.294301
+
+
+goals:
+  - lat: 38.837909
+    lon: -77.293608

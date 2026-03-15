@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>frodobot_mppi_critics</name>
+  <version>0.0.0</version>
+  <description>Custom MPPI critics for pure directional following</description>
+  <maintainer email="samipstha54@gmail.com">sameep</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav2_core</depend>
+  <depend>nav2_mppi_controller</depend>
+  <depend>pluginlib</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <nav2_core plugin="${prefix}/plugins.xml" />
+  </export>
+</package>

@@ -1,0 +1,49 @@
+# Perception Configuration
+# Shared by training and inference
+
+# ── Model ───────────────────────────────────────────────────────────────
+model_name: da3metric-large
+da3_pretrained: depth-anything/DA3METRIC-LARGE
+dinov2_embed_dim: 1024
+
+# ── Segmentation ────────────────────────────────────────────────────────
+classes:
+  - path
+
+class_thresholds:
+  path: 0.30
+
+# ── Input ───────────────────────────────────────────────────────────────
+input_size: [294, 518]   # H, W — must be divisible by 14 (DINOv2 patch size)
+imagenet_norm: true
+
+# ── Training ────────────────────────────────────────────────────────────
+training:
+  batch_size: 8
+  lr: 0.001
+  weight_decay: 0.0001
+  max_iters: 200000
+  warmup_iters: 500
+  save_every: 10000
+  val_every: 1500
+  log_every: 50
+  num_workers: 4
+  use_lovasz: true
+  lovasz_weight: 0.5
+
+# ── Paths ───────────────────────────────────────────────────────────────
+# Relative to frodobot_perception/ root
+checkpoint_dir: checkpoints
+data_dirs:
+  - ../Perception/dataset/image_mask_path_294x518_noqwen
+
+# ── Camera (for point cloud backprojection) ─────────────────────────────
+camera:
+  # Approximate values for FrodoBots front camera (1024x576)
+  # Update with calibrated values when available
+  fx: 500.0
+  fy: 500.0
+  cx: 512.0
+  cy: 288.0
+  width: 1024
+  height: 576

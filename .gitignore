@@ -1,0 +1,57 @@
+# ROS 2 build artifacts
+build/
+install/
+log/
+**/log/
+
+# Virtual environment
+stackenv/
+
+# Data and large datasets
+Perception/
+*.pdf
+
+# Temporary and specific launch files
+frodobot_perception_ros/launch/video_test.launch.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+.eggs/
+
+# Machine Learning models (large files)
+*.pt
+*.pth
+*.ckpt
+frodobot_perception_models/checkpoints/
+frodobot_perception_models/inference_output_fixed/
+
+# Generic ignores
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.bak
+*.tmp
+*.log
+*install.log
+
+# C++ build systems
+.catkin
+.catkin_tools/
+
+# OS/System files
+Thumbs.db
+[Bb]hum.db
+Desktop.ini
+
+# Specialized build files
+.sconsign.dblite
+tags
+GTAGS
+GRTAGS
+GPATH

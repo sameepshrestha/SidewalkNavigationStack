@@ -1,0 +1,50 @@
+# Perception node parameters
+perception_node:
+  ros__parameters:
+    # ── Model ─────────────────────────────────────────────────
+    model_name: "da3metric-large"
+    device: "cuda"
+    input_size_h: 294
+    input_size_w: 518
+    seg_threshold: 0.30
+
+    # ── Topics ────────────────────────────────────────────────
+    image_topic: "/earth_rover/front/image_raw"
+
+    # ── Video replay (leave empty for live mode) ──────────────
+    video_file: ""
+    video_fps: 10.0
+    video_stride: 1
+
+    # ── Camera intrinsics (for depth → point cloud) ──────────
+    # The depth map is upsampled back to the ORIGINAL video frame size (1024×576)
+    # before backprojection (see perception_head.py line 270: output_size=(orig_h, orig_w)).
+    # So intrinsics must be in 1024×576 pixel space.
+    #
+    # We have calibrated values at 518×294 (model space):
+    #   fx=294.26, fy=291.45, cx=252.0, cy=140.0
+    # Scale to 1024×576:
+    #   fx = 294.26 * (1024/518) = 581.5
+    #   fy = 291.45 * (576/294)  = 570.9
+    #   cx = 252.0  * (1024/518) = 498.0
+    #   cy = 140.0  * (576/294)  = 274.3
+    camera_fx: 581.5
+    camera_fy: 570.9
+    camera_cx: 498.0
+    camera_cy: 274.3
+    camera_frame: "front_camera_optical_frame"
+
+    # ── Camera extrinsics (relative to base_link) ────────────────────
+    # Setting to 'true' ensures the Mapping node receives robot-relative
+    # coordinates (X-forward, Y-left) even if the camera is tilted.
+    transform_to_base: true
+    camera_x: 0.0
+    camera_y: 0.0
+    camera_z: 0.27
+    camera_pitch_deg: 0.0
+
+    # ── Point cloud ───────────────────────────────────────────
+    publish_pointcloud: true
+    pc_min_depth: 0.1
+    pc_max_depth: 20.0
+    pc_downsample: 2

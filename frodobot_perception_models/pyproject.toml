@@ -1,0 +1,24 @@
+[project]
+name = "frodobot-perception"
+version = "0.1.0"
+description = "Depth + Segmentation perception for FrodoBots Earth Rover"
+requires-python = ">=3.8"
+dependencies = [
+    "torch",
+    "torchvision",
+    "numpy",
+    "opencv-python",
+    "Pillow",
+    "huggingface-hub",
+    "safetensors",
+    "omegaconf",
+    "addict",
+    "einops",
+]
+
+[project.optional-dependencies]
+train = ["comet_ml", "matplotlib"]
+viz = ["open3d"]
+
+[tool.setuptools.packages.find]
+where = ["."]

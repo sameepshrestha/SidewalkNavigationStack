@@ -1,0 +1,29 @@
+traversability_map_node:
+  ros__parameters:
+    # Grid dimensions
+    resolution: 0.1          # metres per cell (5 cm)
+    grid_width_m: 20.0        # total map width  in metres (centred on robot)
+    grid_height_m: 10.0       # total map height in metres (centred on robot)
+
+    # Input/output
+    cloud_topic: "/perception/traversable_cloud"
+    output_topic: "/mapping/traversability"
+    frame_id: "base_link"
+    # How often to publish the map
+    publish_rate_hz: 5.0
+    # a single connected traversable region (footprint circle + far strip).
+    footprint_free_radius_m: 1.3
+    # Depth offset: DA3 minimum depth is ~2.12m, first path points at ~2.78m forward.
+    # Subtract this from all X (forward) coordinates to pull the map closer.
+    # Tune: -1.0 puts near edge at ~1.7m, -1.5 puts it at ~1.2m.
+    cloud_x_offset_m: -1.5
+    # Decay: cells reset to unknown after this many seconds.
+    # Set to 0 to keep cells marked indefinitely (good for static test).
+    # Set to ~2.0 for live robot so the map reflects current view.
+    decay_s: .5
+    # Slope filter (future) — disabled by default for now.
+    # When enabled, marks cells as lethal if the height variance of points
+    # within them exceeds slope_height_thresh_m.
+    slope_filter_enable: false
+    slope_height_thresh_m: 0.15
+#decay has been stoopped for now,see the node for more info

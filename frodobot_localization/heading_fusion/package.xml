@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>heading_fusion</name>
+  <version>0.1.0</version>
+  <description>ROS 2 heading fusion node for GPS course-over-ground + IMU gyro, with optional external global yaw source.</description>
+  <maintainer email="user@example.com">OpenAI</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf_transformations</depend>
+  <depend>tf2_ros</depend>
+  <depend>builtin_interfaces</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

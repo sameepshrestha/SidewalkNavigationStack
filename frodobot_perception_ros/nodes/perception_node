@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# This script wraps the perception node to ensure it runs with the active virtual environment's python.
+# ros2 python entry_points normally hardcode #!/usr/bin/python3 which bypasses the venv and breaks numpy.
+
+# Run the python module, passing all arguments 
+python3 -m frodobot_perception_ros.perception_head "$@"
