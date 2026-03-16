@@ -19,6 +19,24 @@ Behavior:
 import math
 import os
 import yaml
+import folium
+import sys
+
+# Add Globalrouter to path for imports
+# Assumes project root is parent of frodobot_navigation
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.append(os.path.join(ROOT_DIR, "Globalrouter", "planner_settings"))
+sys.path.append(os.path.join(ROOT_DIR, "Globalrouter", "global_planner"))
+
+try:
+    from route_planner import RoutePlanner
+    from config import PlannerConfig
+except ImportError as e:
+    # If not found via relative path, try absolute fallback
+    sys.path.append("/home/sameep/phd_research/navigation_stack_compeition/Globalrouter/planner_settings")
+    sys.path.append("/home/sameep/phd_research/navigation_stack_compeition/Globalrouter/global_planner")
+    from route_planner import RoutePlanner
+    from config import PlannerConfig
 
 import rclpy
 from rclpy.node import Node
@@ -41,15 +59,15 @@ class WaypointFollowerNode(Node):
     def __init__(self):
         super().__init__("waypoint_follower")
 
-        # ── Parameters ──────────────────────────────────────────────────────
         self.declare_parameter("route_file", "")
         self.declare_parameter("goal_tolerance_m", 6.0)
         self.declare_parameter("publish_rate_hz", 2.0)
         self.declare_parameter("gps_topic", "/earth_rover/gps/fix")
         self.declare_parameter("heading_topic", "/robot_heading")
         self.declare_parameter("global_frame", "odom")
-        self.declare_parameter("robot_frame", "base_link") # Added for local vector
-
+        self.declare_parameter("robot_frame", "base_link") 
+        self.declare_parameter("waypoint_spacing_m", 20.0)
+       
         route_file = self.get_parameter("route_file").value
         self.goal_tolerance = float(self.get_parameter("goal_tolerance_m").value)
         publish_rate_hz = float(self.get_parameter("publish_rate_hz").value)
@@ -57,8 +75,8 @@ class WaypointFollowerNode(Node):
         heading_topic = self.get_parameter("heading_topic").value
         self.global_frame = self.get_parameter("global_frame").value
         self.robot_frame = self.get_parameter("robot_frame").value
+        self.wp_spacing = self.get_parameter("waypoint_spacing_m").value
 
-        # ── State ────────────────────────────────────────────────────────────
         self.goals_latlon = []      # [(lat, lon), ...]
         self.current_idx = 0
 
@@ -69,7 +87,6 @@ class WaypointFollowerNode(Node):
         self._follow_goal_handle = None
         self._action_sent = False
 
-        # ── Load route file ─────────────────────────────────────────────────
         if not route_file or not os.path.isfile(route_file):
             self.get_logger().error(f"route_file not found: {route_file!r}")
             self.get_logger().error("Pass --ros-args -p route_file:=/path/to/route.yaml")
@@ -78,20 +95,39 @@ class WaypointFollowerNode(Node):
         with open(route_file, "r") as f:
             cfg = yaml.safe_load(f)
 
+        # Allow adjusting spacing from YAML, otherwise use ROS parameter
+        self.wp_spacing = cfg.get("waypoint_spacing_m", self.wp_spacing)
+
         goals = cfg.get("goals", [])
         if not goals:
             self.get_logger().error("No goals found in route file.")
             return
 
-        def to_latlon(pt):
+        def to_lonlat(pt):
             if isinstance(pt, dict):
-                return (float(pt["lat"]), float(pt["lon"]))
-            return (float(pt[1]), float(pt[0]))
+                return [float(pt["lon"]), float(pt["lat"])]
+            return [float(pt[0]), float(pt[1])]
 
-        self.goals_latlon = [to_latlon(g) for g in goals]
-        self.get_logger().info(f"Loaded {len(self.goals_latlon)} geographic waypoint(s)")
+        start_cfg = cfg.get("start")
+        if not start_cfg:
+            self.get_logger().error("No 'start' coordinate in route file. Needed for Valhalla.")
+            return
 
-        # ── ROS interfaces ──────────────────────────────────────────────────
+        start_pt = to_lonlat(start_cfg)
+        goals_pts = [to_lonlat(g) for g in goals]
+
+        self.get_logger().info(f"Generating Valhalla route (spacing={self.wp_spacing}m)...")
+        try:
+            planner_cfg = PlannerConfig(waypoint_spacing_m=self.wp_spacing)
+            planner = RoutePlanner(config=planner_cfg)
+            self.goals_latlon = planner.generate_route(start=start_pt, goals=goals_pts)
+            self.get_logger().info(f"Route Planner generated {len(self.goals_latlon)} waypoints.")
+        except Exception as e:
+            self.get_logger().error(f"Route Planner failed: {e}. Falling back to straight line.")
+            self.goals_latlon = [(p[1], p[0]) for p in goals_pts]
+
+        self._save_folium_map()
+
         cb_group = ReentrantCallbackGroup()
 
         self._follow_client = ActionClient(
@@ -167,18 +203,27 @@ class WaypointFollowerNode(Node):
             dy = (glat_rad - lat_rad) * EARTH_RADIUS_M
             dist = math.hypot(dx, dy)
 
-        global_goal_heading = math.atan2(dy, dx)
-        
-        actual_heading = math.atan2(
-        math.sin(global_goal_heading - self.robot_heading_rad),
-        math.cos(global_goal_heading - self.robot_heading_rad)
+        # North-referenced Clockwise Heading:
+        # dx is Easting, dy is Northing. atan2(dx, dy) gives 0 at North, 90 at East.
+        global_goal_heading = math.atan2(dx, dy)
+        # relative_heading_cw is the angle from robot front to goal CW.
+        # robot_heading_rad is already North=0, CW.
+        relative_heading_cw = math.atan2(
+            math.sin(global_goal_heading - self.robot_heading_rad),
+            math.cos(global_goal_heading - self.robot_heading_rad)
         )
-        self.get_logger().info(f"Actual heading: {math.degrees(actual_heading):.1f}°")
-        self.get_logger().info(f"Global heading: {math.degrees(global_goal_heading):.1f}°")
-        self.get_logger().info(f"Robot heading: {math.degrees(self.robot_heading_rad):.1f}°")
-        # 3. Convert to 2D vector for MPPI
-        ux = math.cos(actual_heading)
-        uy = math.sin(actual_heading)
+
+        self.get_logger().info(f"Relative CW heading: {math.degrees(relative_heading_cw):.1f}°")
+        self.get_logger().info(f"Global heading (North=0, CW): {math.degrees(global_goal_heading):.1f}°")
+        self.get_logger().info(f"Robot heading (North=0, CW): {math.degrees(self.robot_heading_rad):.1f}°")
+        self.get_logger().info(f"Robot GPS: {self.robot_lat:.8f}, {self.robot_lon:.8f}")
+        self.get_logger().info(f"Goal GPS: {goal_lat:.8f}, {goal_lon:.8f}")
+
+        # Convert relative CW angle to base_link vector (X=front, Y=left)
+        # If relative_heading_cw is +90 (Right), vector is (0, -1)
+        # If relative_heading_cw is -90 (Left), vector is (0, 1)
+        ux = math.cos(relative_heading_cw)
+        uy = -math.sin(relative_heading_cw)
 
         self._publish_heading(ux, uy)
 
@@ -191,6 +236,30 @@ class WaypointFollowerNode(Node):
         msg.vector.y = uy
         msg.vector.z = 0.0
         self.heading_pub.publish(msg)
+
+    def _save_folium_map(self):
+        if not self.goals_latlon:
+            return
+        
+        # Center on first waypoint
+        center = self.goals_latlon[0]
+        m = folium.Map(location=center, zoom_start=18)
+        
+        # Plot goals
+        for i, (lat, lon) in enumerate(self.goals_latlon):
+            color = "red" if i == len(self.goals_latlon) - 1 else "orange"
+            folium.Marker(
+                [lat, lon],
+                popup=f"Waypoint {i+1}",
+                icon=folium.Icon(color=color, icon="info-sign")
+            ).add_to(m)
+            
+        # Draw path
+        folium.PolyLine(self.goals_latlon, color="blue", weight=2.5, opacity=0.8).add_to(m)
+        
+        save_path = "current_route.html"
+        m.save(save_path)
+        self.get_logger().info(f"Saved Folium route map to {os.path.abspath(save_path)}")
 
     # ── Action Interface: Dummy Path ─────────────────────────────────────────
     def _send_dummy_path_goal(self):

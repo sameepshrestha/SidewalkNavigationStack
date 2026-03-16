@@ -13,10 +13,10 @@ Published topics:
 - /robot_heading_deg  (std_msgs/msg/Float64)  heading in degrees
 
 Heading convention:
-- ENU/world-style heading
-- 0 rad   = East
-- +pi/2   = North
-- atan2(dy, dx) convention
+- North-referenced heading
+- 0 rad   = North
+- +pi/2   = East (Clockwise)
+- atan2(dx, dy) convention
 """
 
 from __future__ import annotations
@@ -29,8 +29,8 @@ from typing import Deque, Optional, Tuple
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from sensor_msgs.msg import MagneticField, NavSatFix
-from std_msgs.msg import Float64
+from sensor_msgs.msg import NavSatFix
+from std_msgs.msg import Float32, Float64
 
 
 EARTH_RADIUS_M = 6378137.0
@@ -55,21 +55,12 @@ class SimpleHeadingNode(Node):
     def __init__(self) -> None:
         super().__init__("simple_heading_node")
         # Topics
-        self.declare_parameter("mag_topic", "/earth_rover/imu/mag")
         self.declare_parameter("gps_topic", "/earth_rover/gps/fix")
+        self.declare_parameter("orient_topic", "/earth_rover/status/orientation_deg")
         self.declare_parameter("heading_topic", "/robot_heading")
         self.declare_parameter("heading_deg_topic", "/robot_heading_deg")
-        # Magnetometer init
-        self.declare_parameter("mag_offset_x", 0.0)
-        self.declare_parameter("mag_offset_y", 0.0)
-        self.declare_parameter("mag_offset_z", 0.0)
-        self.declare_parameter("mag_init_mode", "xz_negz_negx")
-        # options:
-        #   xz_negz_x     -> atan2(-mz,  mx)
-        #   xz_z_x        -> atan2( mz,  mx)
-        #   xz_negz_negx  -> atan2(-mz, -mx)
-        #   xz_z_negx     -> atan2( mz, -mx)
 
+        # Orientation init
         self.declare_parameter("yaw_mount_offset_deg", 0.0)
 
         # GPS heading
@@ -82,18 +73,11 @@ class SimpleHeadingNode(Node):
         # Diagnostics
         self.declare_parameter("log_diagnostics_rate_hz", 2.0)
 
-        self.mag_topic = self.get_parameter("mag_topic").value
         self.gps_topic = self.get_parameter("gps_topic").value
+        self.orient_topic = self.get_parameter("orient_topic").value
         self.heading_topic = self.get_parameter("heading_topic").value
         self.heading_deg_topic = self.get_parameter("heading_deg_topic").value
 
-        self.mag_offset = np.array([
-            float(self.get_parameter("mag_offset_x").value),
-            float(self.get_parameter("mag_offset_y").value),
-            float(self.get_parameter("mag_offset_z").value),
-        ], dtype=float)
-
-        self.mag_init_mode = str(self.get_parameter("mag_init_mode").value)
         self.yaw_mount_offset = math.radians(
             float(self.get_parameter("yaw_mount_offset_deg").value)
         )
@@ -105,6 +89,7 @@ class SimpleHeadingNode(Node):
         self.gps_heading_alpha = float(self.get_parameter("gps_heading_alpha").value)
         self.log_hz = float(self.get_parameter("log_diagnostics_rate_hz").value)
 
+
         # State
         self.heading_est: float = 0.0
         self.is_initialized: bool = False
@@ -115,15 +100,19 @@ class SimpleHeadingNode(Node):
         self.datum_lon_deg = float("nan")
         self.datum_is_set = False
         self.gps_points: Deque[LocalXY] = deque(maxlen=self.gps_window_size)
+        self.declare_parameter("publish_heading_rate_hz", 4.0)
+        self.publish_heading_hz = float(self.get_parameter("publish_heading_rate_hz").value)
 
+        if self.publish_heading_hz > 0.0:
+            self.create_timer(1.0 / self.publish_heading_hz, self._publish_timer_cb)
         # ROS
-        self.mag_sub = self.create_subscription(
-            MagneticField, self.mag_topic, self.mag_callback, 20
-        )
+        self.orient_sub = self.create_subscription(
+            Float32, self.orient_topic, self.orient_callback, 20
+        )   
+
         self.gps_sub = self.create_subscription(
             NavSatFix, self.gps_topic, self.gps_callback, 20
         )
-
         self.heading_pub = self.create_publisher(Float64, self.heading_topic, 20)
         self.heading_deg_pub = self.create_publisher(Float64, self.heading_deg_topic, 20)
 
@@ -131,10 +120,8 @@ class SimpleHeadingNode(Node):
             self.create_timer(1.0 / self.log_hz, self.log_diagnostics)
 
         self.get_logger().info("SimpleHeadingNode started")
-        self.get_logger().info(f"  Mag topic: {self.mag_topic}")
         self.get_logger().info(f"  GPS topic: {self.gps_topic}")
         self.get_logger().info(f"  Heading topic: {self.heading_topic}")
-        self.get_logger().info(f"  mag_init_mode: {self.mag_init_mode}")
         self.get_logger().info(
             f"  yaw_mount_offset_deg: {math.degrees(self.yaw_mount_offset):.1f}"
         )
@@ -142,6 +129,17 @@ class SimpleHeadingNode(Node):
     @staticmethod
     def to_sec(stamp) -> float:
         return float(stamp.sec) + 1e-9 * float(stamp.nanosec)
+    def _publish_timer_cb(self) -> None:
+        self.publish_heading()
+    def orient_callback(self, msg: Float32):
+        if self.is_initialized:
+            return
+        deg  = float(msg.data)
+        if math.isnan(deg):
+            return
+        self.heading_est =  wrap_angle(math.radians(deg) + self.yaw_mount_offset)
+        self.is_initialized = True
+        self.publish_heading()
 
     def latlon_to_local_xy(self, lat_deg: float, lon_deg: float) -> Tuple[float, float]:
         lat0 = math.radians(self.datum_lat_deg)
@@ -149,26 +147,10 @@ class SimpleHeadingNode(Node):
         lat = math.radians(lat_deg)
         lon = math.radians(lon_deg)
 
-        x = (lon - lon0) * math.cos(lat0) * EARTH_RADIUS_M
-        y = (lat - lat0) * EARTH_RADIUS_M
+        x = (lon - lon0) * math.cos(lat0) * EARTH_RADIUS_M   # East
+        y = (lat - lat0) * EARTH_RADIUS_M                    # North
         return x, y
 
-    def mag_to_heading(self, m: np.ndarray) -> float:
-        mx, my, mz = m
-
-        if self.mag_init_mode == "xz_negz_x":
-            yaw = math.atan2(-mz, mx)
-        elif self.mag_init_mode == "xz_z_x":
-            yaw = math.atan2(mz, mx)
-        elif self.mag_init_mode == "xz_negz_negx":
-            yaw = math.atan2(-mz, -mx)
-        elif self.mag_init_mode == "xz_z_negx":
-            yaw = math.atan2(mz, -mx)
-        else:
-            self.get_logger().error(f"Unknown mag_init_mode: {self.mag_init_mode} wwhhhhhhhhattttt") 
-            yaw = math.atan2(-mz, mx)
-        
-        return wrap_angle(yaw + self.yaw_mount_offset)
 
     def compute_window_heading(self) -> Optional[float]:
         if len(self.gps_points) < 3:
@@ -176,32 +158,29 @@ class SimpleHeadingNode(Node):
 
         points = list(self.gps_points)
         start, end = points[0], points[-1]
-
         dx_total = end.x - start.x
         dy_total = end.y - start.y
         distance = math.hypot(dx_total, dy_total)
         dt = max(1e-6, end.stamp_sec - start.stamp_sec)
-
         if distance < self.gps_min_distance_m:
             return None
         if (distance / dt) < self.gps_min_speed_mps:
             return None
-
         mean_x = sum(p.x for p in points) / len(points)
         mean_y = sum(p.y for p in points) / len(points)
         sxx = sum((p.x - mean_x) ** 2 for p in points)
         syy = sum((p.y - mean_y) ** 2 for p in points)
         sxy = sum((p.x - mean_x) * (p.y - mean_y) for p in points)
-
-        heading = 0.5 * math.atan2(2.0 * sxy, sxx - syy)
-
-        vx, vy = math.cos(heading), math.sin(heading)
+        enu_heading = 0.5 * math.atan2(2.0 * sxy, sxx - syy)
+        compass_heading = wrap_angle(math.pi / 2.0 - enu_heading)
+        vx = math.sin(compass_heading) 
+        vy = math.cos(compass_heading) 
         if vx * dx_total + vy * dy_total < 0.0:
-            heading = wrap_angle(heading + math.pi)
+            compass_heading = wrap_angle(compass_heading + math.pi)
 
-        return heading
+        return compass_heading
 
-    def publish_heading(self) -> None:
+    def publish_heading(self):
         if not self.is_initialized:
             return
 
@@ -211,26 +190,8 @@ class SimpleHeadingNode(Node):
 
         msg_deg = Float64()
         msg_deg.data = math.degrees(self.heading_est)
+        
         self.heading_deg_pub.publish(msg_deg)
-
-    def mag_callback(self, msg: MagneticField) -> None:
-        if math.isnan(msg.magnetic_field.x):
-            return
-
-        self.last_mag_raw = np.array([
-            msg.magnetic_field.x,
-            msg.magnetic_field.y,
-            msg.magnetic_field.z,
-        ], dtype=float)
-
-        if not self.is_initialized:
-            m = self.last_mag_raw - self.mag_offset
-            self.heading_est = self.mag_to_heading(m)
-            self.is_initialized = True
-            self.get_logger().info(
-                f"Initialized heading from magnetometer: {math.degrees(self.heading_est):.1f}°"
-            )
-            self.publish_heading()
 
     def gps_callback(self, msg: NavSatFix) -> None:
         if math.isnan(msg.latitude) or msg.status.status < 0:
@@ -243,7 +204,7 @@ class SimpleHeadingNode(Node):
             self.datum_lat_deg = lat
             self.datum_lon_deg = lon
             self.datum_is_set = True
-            self.get_logger().info(
+            self.get_logger().info( 
                 f"Set local GPS datum automatically: lat={lat:.8f}, lon={lon:.8f}"
             )
 
