@@ -121,7 +121,6 @@ class WaypointFollowerNode(Node):
         self.robot_lon = msg.longitude
 
     def _heading_cb(self, msg: Float64):
-        # Always keep the latest robot yaw
         self.robot_heading_rad = msg.data
 
     def _timer_cb(self):
@@ -161,8 +160,6 @@ class WaypointFollowerNode(Node):
                     self._cancel_follow_path()
                     self._action_sent = False
                 return
-
-            # Recompute to next goal
             goal_lat, goal_lon = self.goals_latlon[self.current_idx]
             glat_rad = math.radians(goal_lat)
             glon_rad = math.radians(goal_lon)
@@ -170,11 +167,8 @@ class WaypointFollowerNode(Node):
             dy = (glat_rad - lat_rad) * EARTH_RADIUS_M
             dist = math.hypot(dx, dy)
 
-        # ── Compute ACTUAL Relative Heading Vector ──────────────────────────
-        # 1. Get global angle to the target
         global_goal_heading = math.atan2(dy, dx)
         
-        # 2. Subtract robot's current heading to get relative angle
         actual_heading = math.atan2(
         math.sin(global_goal_heading - self.robot_heading_rad),
         math.cos(global_goal_heading - self.robot_heading_rad)

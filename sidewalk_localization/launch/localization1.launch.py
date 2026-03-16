@@ -36,19 +36,19 @@ def generate_launch_description():
     )
 
 
-    ekf_global_node = Node(
-        package='robot_localization',
-        executable='ekf_node',
-        name='ekf_global_node',
-        output='screen',
-        parameters=[ekf_config],
-        remappings=[
-            ('odometry/filtered', '/odometry/global'),
-        ]
-    )
-
+#   ekf_global_node = Node(
+#        package='robot_localization',
+#        executable='ekf_node',
+#        name='ekf_global_node',
+#       output='screen',
+#       parameters=[ekf_config],
+#       remappings=[
+#           ('odometry/filtered', '/odometry/global'),
+#       ]
+#   )
+#
     return LaunchDescription([
         ekf_local_node,
         navsat_transform_node,
-        ekf_global_node,
+        # ekf_global_node,
     ])

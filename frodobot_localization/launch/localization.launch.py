@@ -11,8 +11,6 @@ def generate_launch_description():
     loc_pkg = FindPackageShare('sidewalk_localization')
     
     return LaunchDescription([
-        # Start only the local EKF (odom -> base_link) using wheel odom + IMU
-        # Note: In future you could move the EKF yaml directly into heading_fusion to remove sidewalk_localization
         Node(
             package='robot_localization',
             executable='ekf_node',
@@ -24,7 +22,6 @@ def generate_launch_description():
             ]
         ),
         
-        # Start our custom heading fusion node
         Node(
             package='frodobot_localization',
             executable='heading_fusion_node',
