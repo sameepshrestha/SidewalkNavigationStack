@@ -134,15 +134,12 @@ class WaypointFollowerNode(Node):
                 self._cancel_follow_path()
                 self._action_sent = False
             return
-
-        # ── Trigger Nav2 MPPI with a Dummy Path (once) ──────────────────────
         if not self._action_sent:
             self._send_dummy_path_goal()
             self._action_sent = True
 
         goal_lat, goal_lon = self.goals_latlon[self.current_idx]
         
-        # Spherical Math to find ENU distances
         lat_rad = math.radians(self.robot_lat)
         lon_rad = math.radians(self.robot_lon)
         glat_rad = math.radians(goal_lat)
@@ -151,8 +148,6 @@ class WaypointFollowerNode(Node):
         dx = (glon_rad - lon_rad) * math.cos(lat_rad) * EARTH_RADIUS_M
         dy = (glat_rad - lat_rad) * EARTH_RADIUS_M
         dist = math.hypot(dx, dy)
-
-        # ── Advance waypoint if reached (Using while-loop fix) ──────────────
         while dist < self.goal_tolerance:
             self.get_logger().info(
                 f"Waypoint {self.current_idx + 1}/{len(self.goals_latlon)} reached "
@@ -180,8 +175,13 @@ class WaypointFollowerNode(Node):
         global_goal_heading = math.atan2(dy, dx)
         
         # 2. Subtract robot's current heading to get relative angle
-        actual_heading = global_goal_heading - self.robot_heading_rad
-        
+        actual_heading = math.atan2(
+        math.sin(global_goal_heading - self.robot_heading_rad),
+        math.cos(global_goal_heading - self.robot_heading_rad)
+        )
+        self.get_logger().info(f"Actual heading: {math.degrees(actual_heading):.1f}°")
+        self.get_logger().info(f"Global heading: {math.degrees(global_goal_heading):.1f}°")
+        self.get_logger().info(f"Robot heading: {math.degrees(self.robot_heading_rad):.1f}°")
         # 3. Convert to 2D vector for MPPI
         ux = math.cos(actual_heading)
         uy = math.sin(actual_heading)

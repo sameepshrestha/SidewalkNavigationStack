@@ -63,7 +63,7 @@ class SimpleHeadingNode(Node):
         self.declare_parameter("mag_offset_x", 0.0)
         self.declare_parameter("mag_offset_y", 0.0)
         self.declare_parameter("mag_offset_z", 0.0)
-        self.declare_parameter("mag_init_mode", "xz_negz_x")
+        self.declare_parameter("mag_init_mode", "xz_negz_negx")
         # options:
         #   xz_negz_x     -> atan2(-mz,  mx)
         #   xz_z_x        -> atan2( mz,  mx)
@@ -165,8 +165,9 @@ class SimpleHeadingNode(Node):
         elif self.mag_init_mode == "xz_z_negx":
             yaw = math.atan2(mz, -mx)
         else:
+            self.get_logger().error(f"Unknown mag_init_mode: {self.mag_init_mode} wwhhhhhhhhattttt") 
             yaw = math.atan2(-mz, mx)
-
+        
         return wrap_angle(yaw + self.yaw_mount_offset)
 
     def compute_window_heading(self) -> Optional[float]:

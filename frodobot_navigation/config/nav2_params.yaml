@@ -8,8 +8,8 @@
 controller_server:
   ros__parameters:
     controller_frequency: 10.0          # Hz — match your mapping + perception rate
-    min_x_velocity_threshold: 0.001
-    min_y_velocity_threshold: 0.5
+    min_x_velocity_threshold: 0.05
+    min_y_velocity_threshold: 0.05
     min_theta_velocity_threshold: 0.001
     failure_tolerance: 0.3
     progress_checker_plugins: ["progress_checker"]
@@ -81,14 +81,16 @@ local_costmap:
       robot_base_frame: base_link
       rolling_window: true
       width: 20                        
-      height: 20
-      resolution: 0.05                 
+      height: 10
+      resolution: 0.1                
       footprint: "[[0.19, 0.14], [0.19, -0.14], [-0.19, -0.14], [-0.19, 0.14]]"
       plugins: ["traversability_layer", "inflation_layer"]
       traversability_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: true
         map_topic: /mapping/traversability
+        subscribe_to_updates: true
+        map_subscribe_transient_local: true
         subscribe_to_updates: true
         lethal_cost_threshold: 99
 

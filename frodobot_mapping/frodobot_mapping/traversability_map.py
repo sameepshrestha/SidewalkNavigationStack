@@ -16,10 +16,6 @@ Grid convention (Nav2 standard):
    0  = free / traversable
   100 = lethal obstacle
 
-Why OccupancyGrid and not GridMap?
-  OccupancyGrid is the standard Nav2 costmap format — it works out of the box with
-  RViz, the Nav2 controller server, and does not require any extra ROS packages.
-
 Future extensions (see config/mapping.yaml):
   - slope_filter: mark cells as obstacle if height variance within the cell > threshold
   - decay: cells fade back to unknown after N seconds (robot moves, old data stales)
@@ -42,7 +38,6 @@ class TraversabilityMapNode(Node):
     def __init__(self):
         super().__init__("traversability_map_node")
 
-        # ── Parameters ──────────────────────────────────────────────────
         self.declare_parameter("resolution", 0.05)      # metres per cell
         self.declare_parameter("grid_width_m", 20.0)    # total grid width  (metres)
         self.declare_parameter("grid_height_m", 20.0)   # total grid height (metres)
@@ -55,7 +50,12 @@ class TraversabilityMapNode(Node):
         self.declare_parameter("slope_height_thresh_m", 0.25)
         self.declare_parameter("footprint_free_radius_m", 0.6)
         self.declare_parameter("cloud_x_offset_m", 0.0)
-
+        self.declare_parameter("obstacle_x_min_m", 1.5)
+        self.declare_parameter("obstacle_x_max_m", 10.0)
+        self.declare_parameter("obstacle_width_half_m", 5.0)
+        self.obstacle_x_min_m = self.get_parameter("obstacle_x_min_m").value
+        self.obstacle_x_max_m = self.get_parameter("obstacle_x_max_m").value
+        self.obstacle_width_half_m = self.get_parameter("obstacle_width_half_m").value
         res      = self.get_parameter("resolution").value
         w_m      = self.get_parameter("grid_width_m").value
         h_m      = self.get_parameter("grid_height_m").value
@@ -79,6 +79,11 @@ class TraversabilityMapNode(Node):
         self.grid_h = int(math.ceil(h_m / res))   # cells
         self.origin_x = -w_m / 2.0                # metres from robot to grid origin (bottom-left)
         self.origin_y = -h_m / 2.0
+
+        xs = self.origin_x +np.arange(self.grid_w)*self.res
+        ys = self.origin_y +np.arange(self.grid_h)*self.res
+        X,Y = np.meshgrid(xs,ys)
+        self._obstacle_mask  = (X>self.obstacle_x_min_m )&(X<self.obstacle_x_max_m)&(np.abs(Y)<self.obstacle_width_half_m)
         self.cost  = np.full((self.grid_h, self.grid_w), -1, dtype=np.int8)
         self.stamp = np.zeros((self.grid_h, self.grid_w), dtype=np.float64)  # last-seen time
         # For slope filter: track min/max Z per cell in the current sweep
@@ -106,6 +111,7 @@ class TraversabilityMapNode(Node):
     def _cloud_cb(self, msg: PointCloud2):
         now = time.time()
         self.cost.fill(-1)
+        self.cost[self._obstacle_mask] = 100 #new obstacle map added where the traversal region was not found, only in visible reigion
         self.stamp.fill(0.0)
         if self.decay_s > 0:
             stale = (self.cost == 0) & ((now - self.stamp) > self.decay_s)

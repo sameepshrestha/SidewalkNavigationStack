@@ -84,7 +84,7 @@ class EarthRoverBridge(Node):
         self.declare_parameter("request_timeout_s", 2.0)
         self.declare_parameter("verify_ssl", True)
         self.declare_parameter("image_mode", "paired")  # paired/front/rear
-        self.declare_parameter("image_rate_hz", 10.0)
+        self.declare_parameter("image_rate_hz", 5.0)
         self.declare_parameter("data_rate_hz", 10.0)
         # Frames
         self.declare_parameter("base_frame", "base_link")
@@ -618,7 +618,7 @@ class EarthRoverBridge(Node):
     def on_cmd_vel(self, msg: Twist) -> None:
         linear = clamp(float(msg.linear.x), -1.0, 1.0)
         angular = clamp(float(msg.angular.z), -1.0, 1.0)
-        self.last_cmd_vel_payload = {"command": {"linear": linear, "angular": angular, "lamp": 0}}
+        self.last_cmd_vel_payload = {"command": {"linear": 0, "angular": 0, "lamp": 0}}
         self.last_cmd_vel_stamp = self.get_clock().now()
 
     def poll_control(self) -> None:
