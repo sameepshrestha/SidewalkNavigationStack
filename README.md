@@ -38,3 +38,5 @@ Location: `frodobot_perception_models/model/src/depth_anything_3`
 - `frodobot_navigation`: Nav2 configuration and waypoint following logic.
 - `frodobot_mppi_critics`: Custom C++ critics for the MPPI controller.
 - `sidewalk_localization`: Supplementary EKF-based localization.
+
+<img width="2182" height="1334" alt="Screenshot from 2026-03-16 17-54-31" src="https://github.com/user-attachments/assets/0ea38a89-84d7-40a1-9162-1eb2d8e626eb" />
